@@ -27,6 +27,13 @@ describe('settingsFor', () => {
 });
 
 describe('decideImage', () => {
+  it('leaves alone pictures too large to decode safely', () => {
+    expect(decideImage(photo({ width: 8000, height: 6000 }), balanced)).toEqual({
+      action: 'keep',
+      reason: 'tooLarge',
+    });
+  });
+
   it('shrinks a picture drawn at more dots per inch than the preset wants', () => {
     expect(decideImage(photo(), balanced)).toEqual({
       action: 'recompress',
@@ -103,7 +110,7 @@ describe('decideImage', () => {
     );
   });
 
-  it('keeps the aspect ratio within a pixel and never asks for an empty picture', () => {
+  it('keeps each side within half a pixel of its exact scaled size, and never empty', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 64, max: 8000 }),
@@ -118,9 +125,13 @@ describe('decideImage', () => {
           expect(decision.width).toBeGreaterThanOrEqual(1);
           expect(decision.height).toBeGreaterThanOrEqual(1);
           expect(decision.width).toBeLessThanOrEqual(w);
-          // Each side is rounded to a whole pixel, which can move it by half a pixel.
-          const relative = Math.abs(decision.width / decision.height - w / h) / (w / h);
-          expect(relative).toBeLessThanOrEqual(0.5 / decision.width + 0.5 / decision.height + 1e-9);
+          expect(decision.height).toBeLessThanOrEqual(h);
+          // Both sides use the same scale, so the shape is kept up to rounding each side.
+          const scale = decision.resize ? Math.min(1, balanced.targetDpi / dpi) : 1;
+          expect(Math.abs(decision.width - Math.max(1, w * scale))).toBeLessThanOrEqual(0.5 + 1e-9);
+          expect(Math.abs(decision.height - Math.max(1, h * scale))).toBeLessThanOrEqual(
+            0.5 + 1e-9,
+          );
         },
       ),
     );

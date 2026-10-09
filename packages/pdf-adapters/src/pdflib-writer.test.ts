@@ -63,6 +63,19 @@ describe('assemble', () => {
     expect(out.map((p) => p.rotate)).toEqual([90, 0, 90, 0]);
   });
 
+  it('keeps the sum of rotations between 0 and 270, whatever the source says', async () => {
+    const { PDFDocument, degrees } = await import('@cantoo/pdf-lib');
+    const odd = await PDFDocument.create();
+    odd.addPage([200, 300]).setRotation(degrees(-90));
+    odd.addPage([200, 300]).setRotation(degrees(450));
+    const result = await writer.assemble(new Map([['o', await odd.save()]]), [
+      { kind: 'original', sourceId: 'o', pageIndex: 0, rotation: 0 },
+      { kind: 'original', sourceId: 'o', pageIndex: 1, rotation: 270 },
+    ]);
+    if (!result.ok) throw new Error('assemble failed');
+    expect((await readPages(result.value)).map((p) => p.rotate)).toEqual([270, 0]);
+  });
+
   it('produces a file that qpdf --check accepts', async () => {
     const result = await writer.assemble(sources, pages);
     if (!result.ok) throw new Error('assemble failed');

@@ -1,5 +1,6 @@
-import { PDFDocument, PDFRawStream } from '@cantoo/pdf-lib';
+import { PDFDocument, PDFName, PDFRawStream } from '@cantoo/pdf-lib';
 import {
+  MAX_DECODED_PIXELS,
   acceptable,
   decideImage,
   err,
@@ -41,6 +42,8 @@ interface Prepared {
 }
 
 function prepare(image: CompressibleImage): Prepared | undefined {
+  // Decoding a picture this large could exhaust the worker's memory; it is left as it is.
+  if (image.width * image.height > MAX_DECODED_PIXELS) return undefined;
   if (image.source === 'jpeg') return { samples: undefined, lineArt: false };
   const samples = flateSamples(image);
   return samples === undefined
@@ -92,10 +95,11 @@ function replace(
     Subtype: 'Image',
     Width: width,
     Height: height,
-    ColorSpace: 'DeviceRGB',
     BitsPerComponent: 8,
     Filter: 'DCTDecode',
   });
+  // The samples were never colour-converted, so an RGB profile still describes them.
+  dict.set(PDFName.of('ColorSpace'), image.iccProfile ?? PDFName.of('DeviceRGB'));
   doc.context.assign(image.ref, PDFRawStream.of(dict, jpeg));
 }
 
@@ -165,6 +169,19 @@ export function createCompressor(
   compressorOptions: CompressorOptions = {},
 ): Compressor {
   async function compress(
+    bytes: Uint8Array,
+    preset: CompressionPreset,
+    options: CompressionOptions = {},
+  ): Promise<Result<CompressionOutcome, PdfError>> {
+    try {
+      return await compressUnsafe(bytes, preset, options);
+    } catch (error) {
+      // Results cross the worker boundary, exceptions must not (ADR 003).
+      return err(pdfError('internal', error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  async function compressUnsafe(
     bytes: Uint8Array,
     preset: CompressionPreset,
     options: CompressionOptions = {},
