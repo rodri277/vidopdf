@@ -114,27 +114,42 @@
   "bundled": [
     {
       "name": "CMaps (Adobe)",
-      "license": "BSD-3-Clause"
+      "license": "BSD-3-Clause",
+      "notices": ["/pdfjs/cmaps/LICENSE"]
     },
     {
       "name": "OpenJPEG decoder",
-      "license": "BSD-2-Clause"
+      "license": "BSD-2-Clause",
+      "notices": ["/pdfjs/wasm/LICENSE_OPENJPEG"]
     },
     {
       "name": "JBIG2 decoder (PDFium)",
-      "license": "BSD-3-Clause"
+      "license": "BSD-3-Clause",
+      "notices": ["/pdfjs/wasm/LICENSE_JBIG2"]
     },
     {
       "name": "qcms color management",
-      "license": "MIT"
+      "license": "MIT",
+      "notices": ["/pdfjs/wasm/LICENSE_QCMS"]
+    },
+    {
+      "name": "pdf.js wrappers of the decoders above",
+      "license": "Apache-2.0",
+      "notices": [
+        "/pdfjs/wasm/LICENSE_PDFJS_OPENJPEG",
+        "/pdfjs/wasm/LICENSE_PDFJS_JBIG2",
+        "/pdfjs/wasm/LICENSE_PDFJS_QCMS"
+      ]
     },
     {
       "name": "Foxit standard fonts (PDFium)",
-      "license": "BSD-3-Clause"
+      "license": "BSD-3-Clause",
+      "notices": ["/pdfjs/standard_fonts/LICENSE_FOXIT"]
     },
     {
       "name": "ICC profiles",
-      "license": "CC0-1.0"
+      "license": "CC0-1.0",
+      "notices": ["/pdfjs/iccs/LICENSE"]
     }
   ]
 }

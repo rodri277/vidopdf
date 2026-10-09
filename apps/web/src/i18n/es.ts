@@ -271,6 +271,8 @@ export const es = {
       name: 'Nombre',
       version: 'Versión',
       license: 'Licencia',
+      notice: 'Aviso',
+      sbom: 'Lista de componentes (SBOM, formato CycloneDX)',
       bundled: 'Incluidos con pdf.js',
       bundledHint:
         'Se sirven desde este mismo sitio (/pdfjs/): descodificadores de imagen, mapas de caracteres, fuentes estándar y perfiles de color.',

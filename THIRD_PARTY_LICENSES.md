@@ -30,16 +30,17 @@ Policy: [ADR 005](docs/adr/005-license-policy.md).
 | use-sync-external-store | 1.7.0 | MIT |
 | zustand | 5.0.15 | MIT |
 
-## Bundled with pdfjs-dist (served from `/pdfjs/`)
+## Bundled with pdfjs-dist (served from `/pdfjs/`, each with its notice file)
 
 | Component | License | Notice |
 | --- | --- | --- |
-| CMaps (Adobe) | BSD-3-Clause | pdfjs-dist/cmaps/ |
-| OpenJPEG decoder | BSD-2-Clause | pdfjs-dist/wasm/LICENSE_OPENJPEG |
-| JBIG2 decoder (PDFium) | BSD-3-Clause | pdfjs-dist/wasm/LICENSE_JBIG2 |
-| qcms color management | MIT | pdfjs-dist/wasm/LICENSE_QCMS |
-| Foxit standard fonts (PDFium) | BSD-3-Clause | pdfjs-dist/standard_fonts/LICENSE_FOXIT |
-| ICC profiles | CC0-1.0 | pdfjs-dist/iccs/ |
+| CMaps (Adobe) | BSD-3-Clause | /pdfjs/cmaps/LICENSE |
+| OpenJPEG decoder | BSD-2-Clause | /pdfjs/wasm/LICENSE_OPENJPEG |
+| JBIG2 decoder (PDFium) | BSD-3-Clause | /pdfjs/wasm/LICENSE_JBIG2 |
+| qcms color management | MIT | /pdfjs/wasm/LICENSE_QCMS |
+| pdf.js wrappers of the decoders above | Apache-2.0 | /pdfjs/wasm/LICENSE_PDFJS_OPENJPEG, /pdfjs/wasm/LICENSE_PDFJS_JBIG2, /pdfjs/wasm/LICENSE_PDFJS_QCMS |
+| Foxit standard fonts (PDFium) | BSD-3-Clause | /pdfjs/standard_fonts/LICENSE_FOXIT |
+| ICC profiles | CC0-1.0 | /pdfjs/iccs/LICENSE |
 
 ## Full license texts
 

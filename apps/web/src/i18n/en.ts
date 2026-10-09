@@ -272,6 +272,8 @@ export const en: Widen<typeof es> = {
       name: 'Name',
       version: 'Version',
       license: 'License',
+      notice: 'Notice',
+      sbom: 'Software bill of materials (SBOM, CycloneDX format)',
       bundled: 'Bundled with pdf.js',
       bundledHint:
         'Served from this same site (/pdfjs/): image decoders, character maps, standard fonts and color profiles.',

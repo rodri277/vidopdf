@@ -76,4 +76,23 @@ test.describe('legal pages inside the app', () => {
     expect(foreignRequests).toEqual([]);
     expect(cspViolations).toEqual([]);
   });
+
+  test('every notice and the SBOM linked from the licenses page is really served', async ({
+    page,
+  }) => {
+    await page.goto('/licenses');
+    await expect(
+      page.getByRole('main').getByRole('cell', { name: 'LICENSE_OPENJPEG' }),
+    ).toBeVisible();
+    const hrefs = await page
+      .getByRole('main')
+      .locator('a[href^="/pdfjs/"], a[href="/sbom.cdx.json"]')
+      .evaluateAll((links) => links.map((link) => link.getAttribute('href') ?? ''));
+    expect(hrefs.length).toBeGreaterThanOrEqual(8);
+    for (const href of hrefs) {
+      const response = await page.request.get(href);
+      expect(response.ok(), href).toBe(true);
+      expect((await response.text()).length, href).toBeGreaterThan(50);
+    }
+  });
 });
