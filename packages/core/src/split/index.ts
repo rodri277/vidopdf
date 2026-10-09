@@ -11,3 +11,4 @@ export {
 export type { GroupKind, PageGroup } from './groups';
 export { splitBySize } from './by-size';
 export type { MeasureGroup, SizedGroup, SizeSplitOptions } from './by-size';
+export { bookmarksFromOutline, outlineDepth } from './bookmarks';

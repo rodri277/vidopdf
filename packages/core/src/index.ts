@@ -57,6 +57,10 @@ export { planRenders } from './scheduling/render-plan';
 export type { RenderPlan, RenderPlanInput } from './scheduling/render-plan';
 export type {
   CompressionPreset,
+  EncodedImage,
+  OutlineEntry,
+  ZipBuilder,
+  ZipOptions,
   Compressor,
   FileIO,
   PdfInfo,
