@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import type { ChangeEvent } from 'react';
-import { useWorkspace } from '../state/workspace-store';
+import { useSession } from '../state/session-store';
 import { FilesPanel } from './FilesPanel';
 import { Footer } from './Footer';
 import { Stage } from './Stage';
@@ -9,7 +9,7 @@ import './app.css';
 
 export function App() {
   const input = useRef<HTMLInputElement>(null);
-  const addFiles = useWorkspace((state) => state.addFiles);
+  const addFiles = useSession((state) => state.addFiles);
 
   const openPicker = useCallback(() => {
     input.current?.click();

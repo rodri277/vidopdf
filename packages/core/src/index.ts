@@ -41,6 +41,8 @@ export type { Session } from './history/session';
 export { buildExportPlan, exportPageCount } from './export/export-plan';
 export type { AssembleStep, ExportPlan, ExportStep } from './export/export-plan';
 export { LruCache } from './cache/lru';
+export { planRenders } from './scheduling/render-plan';
+export type { RenderPlan, RenderPlanInput } from './scheduling/render-plan';
 export type {
   CompressionPreset,
   Compressor,

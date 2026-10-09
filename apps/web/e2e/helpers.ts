@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../../../tests/fixtures/generated');
 
@@ -34,4 +34,29 @@ export async function openApp(page: Page): Promise<void> {
   });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Vidopdf' })).toBeVisible();
+}
+
+/** The grid cards, in document order. */
+export function pageCards(page: Page): Locator {
+  return page.getByRole('option');
+}
+
+/** Waits until the card at `index` has a drawn thumbnail (its canvas exists). */
+export async function expectThumbnail(page: Page, index: number): Promise<void> {
+  await expect(pageCards(page).nth(index).locator('canvas')).toBeVisible();
+}
+
+/** Exports and returns the downloaded bytes. */
+export async function exportPdf(page: Page): Promise<Buffer> {
+  await page
+    .getByRole('button', { name: /Exportar|Export$/ })
+    .first()
+    .click();
+  const save = page.getByRole('button', { name: /^(Guardar|Save)$/ });
+  await expect(save).toBeVisible();
+  const download = page.waitForEvent('download');
+  await save.click();
+  const path = await (await download).path();
+  const { readFile } = await import('node:fs/promises');
+  return readFile(path);
 }

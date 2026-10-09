@@ -20,6 +20,11 @@ export class LruCache<K, V> {
     return this.#entries.has(key);
   }
 
+  /** Reads without changing the eviction order. */
+  peek(key: K): V | undefined {
+    return this.#entries.get(key);
+  }
+
   /** Reads and marks the entry as most recently used. */
   get(key: K): V | undefined {
     const value = this.#entries.get(key);

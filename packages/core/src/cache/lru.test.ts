@@ -41,6 +41,16 @@ describe('LruCache', () => {
     expect(cache.size).toBe(0);
   });
 
+  it('peeks without refreshing the entry', () => {
+    const cache = new LruCache<string, number>(2);
+    cache.set('a', 1);
+    cache.set('b', 2);
+    expect(cache.peek('a')).toBe(1);
+    expect(cache.peek('zzz')).toBeUndefined();
+    cache.set('c', 3);
+    expect(cache.has('a')).toBe(false);
+  });
+
   it('works without an eviction callback', () => {
     const cache = new LruCache<number, number>(1);
     cache.set(1, 1);

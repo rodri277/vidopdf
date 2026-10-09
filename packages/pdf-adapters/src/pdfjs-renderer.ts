@@ -73,6 +73,7 @@ export function createPdfjsRenderer(assets: PdfjsAssets): PdfRenderer<ImageBitma
     signal?: AbortSignal,
   ): Promise<Result<RenderedPage<ImageBitmap>, PdfError>> {
     if (doc === undefined) return err(pdfError('internal', 'no document open'));
+    if (signal?.aborted === true) return err(pdfError('cancelled'));
     try {
       const page = await doc.getPage(pageIndex + 1);
       const base = page.getViewport({ scale: 1 });
