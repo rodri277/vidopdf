@@ -19,6 +19,7 @@ import type {
   PdfRenderer,
   RenderedPage,
   Result,
+  Rotation,
 } from '@vidopdf/core';
 import { readOutline } from './outline';
 import { pickScale } from './scale';
@@ -96,6 +97,40 @@ async function encode(
   return ok(new Uint8Array(await blob.arrayBuffer()));
 }
 
+/** A blank page as an image: white paper of the page's size, turned as the user turned it. */
+export async function encodeBlankImage(
+  widthPoints: number,
+  heightPoints: number,
+  rotation: Rotation,
+  options: ImageExportOptions,
+  createCanvas: (width: number, height: number) => RenderCanvas = defaultCanvas,
+): Promise<Result<EncodedImage, PdfError>> {
+  const sideways = rotation === 90 || rotation === 270;
+  const fitted = fitResolution(
+    sideways ? heightPoints : widthPoints,
+    sideways ? widthPoints : heightPoints,
+    options.dpi,
+  );
+  try {
+    const canvas = createCanvas(fitted.width, fitted.height);
+    const context = canvas.getContext('2d') as CanvasRenderingContext2D;
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, fitted.width, fitted.height);
+    const encoded = await encode(canvas, options);
+    return encoded.ok
+      ? ok({
+          bytes: encoded.value,
+          width: fitted.width,
+          height: fitted.height,
+          dpi: fitted.dpi,
+          capped: fitted.capped,
+        })
+      : encoded;
+  } catch (error) {
+    return err(fail(error));
+  }
+}
+
 /** pdf.js renderer for a browser worker (needs OffscreenCanvas). One instance holds one document. */
 export function createPdfjsRenderer(
   assets: PdfjsAssets,
@@ -140,21 +175,21 @@ export function createPdfjsRenderer(
   }
 
   /** Draws a page onto a canvas of the given size, cancelling the draw if the signal fires. */
-  async function paint(
+  async function paint<P extends { scale: number; width: number; height: number }>(
     pageIndex: number,
-    plan: (base: { width: number; height: number }) => {
-      scale: number;
-      width: number;
-      height: number;
-    },
+    plan: (base: { width: number; height: number }) => P,
     signal: AbortSignal | undefined,
     whiteBackground: boolean,
-  ): Promise<{ canvas: RenderCanvas; width: number; height: number }> {
+    extraRotation: Rotation = 0,
+  ): Promise<{ canvas: RenderCanvas; width: number; height: number; planned: P }> {
     if (doc === undefined) throw new Error('no document open');
     const page = await doc.getPage(pageIndex + 1);
-    const base = page.getViewport({ scale: 1 });
-    const { scale, width, height } = plan(base);
-    const viewport = page.getViewport({ scale });
+    // pdf.js wants the total turn; the page already carries its own /Rotate.
+    const rotation = (page.rotate + extraRotation) % 360;
+    const base = page.getViewport({ scale: 1, rotation });
+    const planned = plan(base);
+    const { scale, width, height } = planned;
+    const viewport = page.getViewport({ scale, rotation });
     const canvas = createCanvas(width, height);
     const context = canvas.getContext('2d') as CanvasRenderingContext2D;
     if (whiteBackground) {
@@ -176,7 +211,7 @@ export function createPdfjsRenderer(
     );
     await render.promise;
     page.cleanup();
-    return { canvas, width, height };
+    return { canvas, width, height, planned };
   }
 
   async function renderPage(
@@ -210,31 +245,30 @@ export function createPdfjsRenderer(
     pageIndex: number,
     options: ImageExportOptions,
     signal?: AbortSignal,
+    rotation: Rotation = 0,
   ): Promise<Result<EncodedImage, PdfError>> {
     if (doc === undefined) return err(pdfError('internal', 'no document open'));
     if (signal?.aborted === true) return err(pdfError('cancelled'));
     try {
-      let fitted: ReturnType<typeof fitResolution> | undefined;
-      const { canvas, width, height } = await paint(
+      const { canvas, width, height, planned } = await paint(
         pageIndex,
         (base) => {
-          fitted = fitResolution(base.width, base.height, options.dpi);
-          return { scale: fitted.width / base.width, width: fitted.width, height: fitted.height };
+          const fitted = fitResolution(base.width, base.height, options.dpi);
+          return {
+            scale: fitted.width / base.width,
+            width: fitted.width,
+            height: fitted.height,
+            fitted,
+          };
         },
         signal,
         // A page is white paper; without this PNG would keep it transparent and JPEG would turn it black.
         true,
+        rotation,
       );
       const encoded = await encode(canvas, options);
-      return encoded.ok
-        ? ok({
-            bytes: encoded.value,
-            width,
-            height,
-            dpi: fitted?.dpi ?? options.dpi,
-            capped: fitted?.capped ?? false,
-          })
-        : encoded;
+      const { dpi, capped } = planned.fitted;
+      return encoded.ok ? ok({ bytes: encoded.value, width, height, dpi, capped }) : encoded;
     } catch (error) {
       return err(fail(error));
     }

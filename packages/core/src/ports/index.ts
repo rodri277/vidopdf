@@ -2,7 +2,7 @@ import type { PdfError } from '../errors';
 import type { Result } from '../result';
 import type { ImageExportOptions } from '../images/export';
 import type { ImagePageOptions } from '../images/layout';
-import type { ExportPage } from '../workspace/page-ref';
+import type { ExportPage, Rotation } from '../workspace/page-ref';
 
 export interface PdfInfo {
   readonly pageCount: number;
@@ -43,11 +43,15 @@ export interface PdfRenderer<Image> {
   ): Promise<Result<RenderedPage<Image>, PdfError>>;
   /** The bookmarks of the open document, flattened with their level. Entries that point nowhere are left out. */
   outline(): Promise<Result<OutlineEntry[], PdfError>>;
-  /** Draws a page at a print resolution and encodes it (PNG, JPEG or WebP). */
+  /**
+   * Draws a page at a print resolution and encodes it (PNG, JPEG or WebP). `rotation` is the
+   * quarter turn the user added on top of the page's own, so exported images match the grid.
+   */
   renderImage(
     pageIndex: number,
     options: ImageExportOptions,
     signal?: AbortSignal,
+    rotation?: Rotation,
   ): Promise<Result<EncodedImage, PdfError>>;
   close(): Promise<void>;
 }

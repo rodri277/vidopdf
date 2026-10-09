@@ -1,5 +1,5 @@
 export { createPdfLibWriter } from './pdflib-writer';
-export { createPdfjsRenderer } from './pdfjs-renderer';
+export { createPdfjsRenderer, encodeBlankImage } from './pdfjs-renderer';
 export type { PdfjsAssets, PdfjsLib, RenderCanvas, RendererDeps } from './pdfjs-renderer';
 export { pickScale } from './scale';
 export { createZipBuilder } from './zip';
