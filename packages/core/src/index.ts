@@ -49,10 +49,10 @@ export {
   outputProtection,
   suggestedBaseName,
 } from './export/export-plan';
+export type { Decorations } from './export/decorations';
 export type {
   AssembleStep,
   CompressStep,
-  Decorations,
   ExportOptions,
   ExportOutput,
   ExportPlan,

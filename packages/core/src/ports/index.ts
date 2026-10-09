@@ -1,6 +1,7 @@
 import type { PdfError } from '../errors';
 import type { Result } from '../result';
 import type { CompressionReport } from '../compression/report';
+import type { Decorations } from '../export/decorations';
 import type { ImageExportOptions } from '../images/export';
 import type { ImagePageOptions } from '../images/layout';
 import type { ExportPage, Rotation } from '../workspace/page-ref';
@@ -68,6 +69,10 @@ export interface PdfRenderer<Image> {
 
 export interface WriteOptions {
   readonly signal?: AbortSignal;
+  /** Stamps, metadata, bookmarks and form values to apply while assembling. */
+  readonly decorations?: Decorations;
+  /** Pictures that stamps and signatures use, by asset id. */
+  readonly assets?: ReadonlyMap<string, Uint8Array>;
   /** Called after each page is added, with the number done so far and the total. */
   readonly onProgress?: (done: number, total: number) => void;
 }

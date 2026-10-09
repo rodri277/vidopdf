@@ -1,10 +1,8 @@
 import { resolveBookmarks } from '../bookmarks/tree';
-import type { BookmarkNode, ResolvedBookmark } from '../bookmarks/tree';
-import type { MetadataSettings } from '../document/metadata';
-import type { FormMode, FormValues } from '../forms';
+import type { BookmarkNode } from '../bookmarks/tree';
+import type { Decorations } from './decorations';
 import { safeFileName, paddedNumber, stripExtension, uniqueNames } from '../names';
 import type { Permissions } from '../security/permissions';
-import type { Stamp } from '../stamps/stamp';
 import type { PageGroup } from '../split/groups';
 import { formatRange } from '../split/ranges';
 import { toExportPage } from '../workspace/page-ref';
@@ -12,24 +10,9 @@ import type { ExportPage, PageRef } from '../workspace/page-ref';
 import type { Workspace } from '../workspace/workspace';
 import type { CompressionPreset } from '../ports';
 
-/**
- * What is done to the document while it is assembled, because it needs the document before it is
- * saved: stamps, metadata, bookmarks and form values.
- */
-export interface Decorations {
-  readonly stamps: readonly Stamp[];
-  /** Name of the output, for `{file}` in a stamp. */
-  readonly fileName: string;
-  /** The day of export, for `{date}`. */
-  readonly date: string;
-  readonly metadata: MetadataSettings;
-  /** Resolved against the pages of this output. */
-  readonly bookmarks: readonly ResolvedBookmark[];
-  readonly forms: FormValues;
-  readonly formMode: FormMode;
-}
-
 /** Steps run in order. */
+export type { Decorations } from './decorations';
+
 export interface AssembleStep {
   readonly kind: 'assemble';
   readonly pages: readonly ExportPage[];
