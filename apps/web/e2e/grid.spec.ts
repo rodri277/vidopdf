@@ -77,6 +77,25 @@ test.describe('reordering', () => {
     await expect(announcer(page)).toHaveText(/Página 1 movida a la posición 4/);
   });
 
+  test('the dragged picture follows the pointer, whichever page is picked up', async ({ page }) => {
+    await loadFive(page);
+    // Not the first page: it sits at the grid's origin, where a wrong measurement would not show.
+    const from = await pageCards(page).nth(3).boundingBox();
+    if (from === null) throw new Error('card is not visible');
+    const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    const pointer = { x: start.x - 40, y: start.y + 30 };
+    await page.mouse.move(pointer.x, pointer.y, { steps: 8 });
+    const ghost = await page.locator('.drag-stack').boundingBox();
+    await page.mouse.up();
+    if (ghost === null) throw new Error('no drag picture');
+    expect(pointer.x).toBeGreaterThan(ghost.x);
+    expect(pointer.x).toBeLessThan(ghost.x + ghost.width);
+    expect(pointer.y).toBeGreaterThan(ghost.y);
+    expect(pointer.y).toBeLessThan(ghost.y + ghost.height);
+  });
+
   test('Alt + arrows reorder with the keyboard and announce it', async ({ page }) => {
     await loadFive(page);
     await clickCard(page, 1);
