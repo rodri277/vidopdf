@@ -19,7 +19,7 @@ module.exports = {
       severity: 'error',
       from: { path: '^packages/pdf-adapters/src' },
       to: {
-        pathNot: ['^packages/pdf-adapters/src', '^packages/core/src', PDF_LIBS, '^@vidopdf/core$'],
+        pathNot: ['^packages/pdf-adapters/src', '^packages/core/src', PDF_LIBS, '^@vidopdf/core(/|$)'],
         dependencyTypesNot: ['core'],
       },
     },
@@ -36,7 +36,7 @@ module.exports = {
         'Rendering, export and OCR run in workers. Only src/workers may import pdf-adapters.',
       severity: 'error',
       from: { path: '^apps/web/src', pathNot: '^apps/web/src/workers/' },
-      to: { path: '^packages/pdf-adapters/|^@vidopdf/pdf-adapters$' },
+      to: { path: '^packages/pdf-adapters/|^@vidopdf/pdf-adapters(/|$)' },
     },
     {
       name: 'no-circular',

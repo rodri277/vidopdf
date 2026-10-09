@@ -27,6 +27,7 @@ const violations = [
   ['ui-imports-pdfjs', 'ui-never-imports-pdf-libs'],
   ['ui-imports-pdflib', 'ui-never-imports-pdf-libs'],
   ['ui-imports-adapters', 'pdf-work-only-in-workers'],
+  ['ui-imports-adapters-package', 'pdf-work-only-in-workers'],
   ['circular', 'no-circular'],
 ];
 
