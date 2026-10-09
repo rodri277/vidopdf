@@ -1,6 +1,6 @@
 const { join } = require('node:path');
 
-const PDF_LIBS = '(^|node_modules/)(pdfjs-dist|@cantoo/pdf-lib|pdf-lib)(/|$)';
+const PDF_LIBS = '(^|node_modules/)(pdfjs-dist|@cantoo/pdf-lib|@pdf-lib/fontkit|pdf-lib)(/|$)';
 /** What adapters may use besides the PDF engines: the ZIP library. */
 const ADAPTER_LIBS = '(^|node_modules/)fflate(/|$)';
 

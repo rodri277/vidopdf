@@ -22,6 +22,8 @@ const ALLOWED = new Set([
   'CC0-1.0',
   'OFL-1.1',
   '0BSD',
+  // Permissive and OSI-approved (a notice, no misrepresentation); ADR 005. Comes with pako.
+  'Zlib',
 ]);
 
 /** Approved exceptions: package name -> license. Each one needs an ADR. */
@@ -80,10 +82,11 @@ const rows = Object.entries(found)
 const violations = rows.filter((row) => {
   const exception = EXCEPTIONS.get(row.name);
   if (exception !== undefined) return exception !== row.license;
+  // "A OR B" is fine if one side is allowed; "A AND B" only if every part is.
   return !row.license
     .replace(/[()]/g, '')
     .split(/ OR /)
-    .some((part) => ALLOWED.has(part.trim()));
+    .some((choice) => choice.split(/ AND /).every((part) => ALLOWED.has(part.trim())));
 });
 
 function render() {
