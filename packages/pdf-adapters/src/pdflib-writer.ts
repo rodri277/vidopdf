@@ -1,6 +1,12 @@
 import { PDFDocument, degrees } from '@cantoo/pdf-lib';
+import type { PDFPage } from '@cantoo/pdf-lib';
 import { err, ok, pdfError } from '@vidopdf/core';
 import type { ExportPage, PdfError, PdfInfo, PdfWriter, Result, WriteOptions } from '@vidopdf/core';
+import { cropBox } from '@vidopdf/core';
+import { decorate, ImageCache } from './decorate';
+import { drawOverlays } from './decorate/overlays';
+import { quarterTurn } from './decorate/page-geometry';
+import type { FontFile } from './fonts/font-session';
 import { imageToPdf } from './image-to-pdf';
 
 const YIELD_EVERY = 8;
@@ -57,10 +63,25 @@ async function loadSources(
   return ok(docs);
 }
 
+/** Cuts the page to what the reader sees minus the margins; the rest stays in the file (ADR 006). */
+function applyCrop(
+  page: PDFPage,
+  margins: NonNullable<Extract<ExportPage, { kind: 'original' }>['crop']>,
+): void {
+  const base = page.getCropBox();
+  const box = cropBox(
+    { width: base.width, height: base.height },
+    margins,
+    quarterTurn(page.getRotation().angle),
+  );
+  page.setCropBox(base.x + box.x, base.y + box.y, box.width, box.height);
+}
+
 async function addPage(
   output: PDFDocument,
   docs: ReadonlyMap<string, PDFDocument>,
   selection: ExportPage,
+  images: ImageCache,
 ): Promise<PdfError | undefined> {
   if (selection.kind === 'blank') {
     output.addPage([selection.width, selection.height]).setRotation(degrees(selection.rotation));
@@ -76,23 +97,47 @@ async function addPage(
   const turned = (((page.getRotation().angle + selection.rotation) % 360) + 360) % 360;
   page.setRotation(degrees(turned));
   output.addPage(page);
-  return undefined;
+  if (selection.crop !== undefined) applyCrop(page, selection.crop);
+  return selection.overlays === undefined
+    ? undefined
+    : drawOverlays(page, selection.overlays, images);
 }
 
 async function assemble(
+  fonts: readonly FontFile[],
   sources: ReadonlyMap<string, Uint8Array>,
   pages: readonly ExportPage[],
   options: WriteOptions = {},
 ): Promise<Result<Uint8Array, PdfError>> {
   try {
-    return await assembleUnsafe(sources, pages, options);
+    return await assembleUnsafe(fonts, sources, pages, options);
   } catch (error) {
     // A file that loaded can still fail while its pages are copied (a broken object deep inside).
     return err(pdfError('corrupt', describe(error)));
   }
 }
 
+/** Adds every page in order, with progress, and stops when asked to. */
+async function addPages(
+  output: PDFDocument,
+  docs: ReadonlyMap<string, PDFDocument>,
+  pages: readonly ExportPage[],
+  images: ImageCache,
+  options: WriteOptions,
+): Promise<PdfError | undefined> {
+  for (const [done, selection] of pages.entries()) {
+    if (options.signal?.aborted === true) return pdfError('cancelled');
+    const failure = await addPage(output, docs, selection, images);
+    if (failure !== undefined) return failure;
+    options.onProgress?.(done + 1, pages.length);
+    // Let a cancel message in a worker's queue be seen without paying a timer per page.
+    if ((done + 1) % YIELD_EVERY === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return undefined;
+}
+
 async function assembleUnsafe(
+  fonts: readonly FontFile[],
   sources: ReadonlyMap<string, Uint8Array>,
   pages: readonly ExportPage[],
   options: WriteOptions,
@@ -101,18 +146,27 @@ async function assembleUnsafe(
   const needed = new Set(pages.flatMap((p) => (p.kind === 'original' ? [p.sourceId] : [])));
   const docs = await loadSources(sources, needed);
   if (!docs.ok) return docs;
-  const output = await PDFDocument.create();
-  for (const [done, selection] of pages.entries()) {
-    if (options.signal?.aborted === true) return err(pdfError('cancelled'));
-    const failure = await addPage(output, docs.value, selection);
-    if (failure !== undefined) return err(failure);
-    options.onProgress?.(done + 1, pages.length);
-    // Let a cancel message in a worker's queue be seen without paying a timer per page.
-    if ((done + 1) % YIELD_EVERY === 0) await new Promise((resolve) => setTimeout(resolve, 0));
-  }
-  return ok(await output.save({ useObjectStreams: false }));
+  const output = await PDFDocument.create({ updateMetadata: false });
+  const assets = options.assets ?? new Map<string, Uint8Array>();
+  const images = new ImageCache(output, assets);
+  const failure =
+    (await addPages(output, docs.value, pages, images, options)) ??
+    (options.decorations === undefined
+      ? undefined
+      : await decorate(output, options.decorations, { fonts, assets }));
+  return failure === undefined ? ok(await output.save({ useObjectStreams: false })) : err(failure);
 }
 
-export function createPdfLibWriter(): PdfWriter {
-  return { inspect, assemble, fromImage: imageToPdf };
+export interface PdfLibWriterConfig {
+  /** The fonts stamps may use (the Inter files of the app). Loaded only if a stamp has text. */
+  readonly fonts?: readonly FontFile[];
+}
+
+export function createPdfLibWriter(config: PdfLibWriterConfig = {}): PdfWriter {
+  const fonts = config.fonts ?? [];
+  return {
+    inspect,
+    assemble: (sources, pages, options) => assemble(fonts, sources, pages, options),
+    fromImage: imageToPdf,
+  };
 }
