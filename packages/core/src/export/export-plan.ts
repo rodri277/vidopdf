@@ -104,6 +104,22 @@ function stepsFor(
   return steps;
 }
 
+/**
+ * The decorations to build a file with when only its size matters (splitting by size): the same
+ * stamps, metadata and form values, without bookmarks, which depend on which pages end up where.
+ */
+export function decorationsForMeasuring(workspace: Workspace): Decorations {
+  return {
+    stamps: workspace.stamps,
+    fileName: 'measure.pdf',
+    date: '',
+    metadata: workspace.metadata,
+    bookmarks: [],
+    forms: workspace.forms,
+    formMode: workspace.formMode,
+  };
+}
+
 /** Everything in the workspace, in order, as one PDF. */
 export function buildExportPlan(workspace: Workspace, options: ExportOptions = {}): ExportPlan {
   const name = `${safeFileName(options.base ?? suggestedBaseName(workspace), DEFAULT_BASE)}.pdf`;

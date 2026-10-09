@@ -9,3 +9,5 @@ export { imageToPdf } from './image-to-pdf';
 export { createCompressor } from './compress/compress';
 export type { CompressorOptions } from './compress/compress';
 export type { ImageCodec, Raster } from './compress/codec';
+export type { FontFile } from './fonts/font-session';
+export type { PdfLibWriterConfig } from './pdflib-writer';

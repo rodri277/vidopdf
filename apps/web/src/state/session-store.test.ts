@@ -78,6 +78,8 @@ function setup(
       Promise.resolve(ok({ info: { pageCount: 1 }, pdf: new Uint8Array([9]) })),
     ),
     release: vi.fn(),
+    registerAsset: vi.fn(),
+    releaseAsset: vi.fn(),
     runPlan: vi.fn(() => Promise.resolve(ok(produced()))),
     splitBySize: vi.fn(() => Promise.resolve(ok([]))),
     cancelJob: vi.fn(),

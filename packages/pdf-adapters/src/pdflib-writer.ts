@@ -170,3 +170,4 @@ export function createPdfLibWriter(config: PdfLibWriterConfig = {}): PdfWriter {
     fromImage: imageToPdf,
   };
 }
+export type { FontFile } from './fonts/font-session';

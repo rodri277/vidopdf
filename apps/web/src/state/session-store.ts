@@ -6,6 +6,7 @@ import {
   buildExportPlan,
   buildExtractPlan,
   buildSplitPlan,
+  decorationsForMeasuring,
   outputCompression,
   clearSelection,
   createSession,
@@ -184,9 +185,11 @@ function toImageJobPage(page: PageRef): ImageJobPage {
 function toPlanned(plan: ExportPlan): PlannedOutput[] {
   return plan.outputs.map((output) => {
     const compression = outputCompression(output);
+    const assemble = output.steps.find((step) => step.kind === 'assemble');
     return {
       name: output.name,
-      pages: output.steps.flatMap((step) => (step.kind === 'assemble' ? step.pages : [])),
+      pages: assemble?.kind === 'assemble' ? assemble.pages : [],
+      ...(assemble?.kind === 'assemble' ? { decorations: assemble.decorations } : {}),
       ...(compression === undefined ? {} : { compression }),
     };
   });
@@ -548,6 +551,7 @@ export function createSessionStore(deps: SessionDeps) {
                 set({ split: { phase: 'measuring', done, total } });
               }
             }),
+            { decorations: decorationsForMeasuring(workspace()), edits: workspace().edits },
           )
           .catch((error: unknown) =>
             err({ kind: 'measureFailed' as const, detail: describeFailure(error) }),

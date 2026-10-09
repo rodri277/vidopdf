@@ -43,6 +43,7 @@ export {
   buildExportPlan,
   buildExtractPlan,
   buildSplitPlan,
+  decorationsForMeasuring,
   exportPageCount,
   outputCompression,
   outputPageCount,

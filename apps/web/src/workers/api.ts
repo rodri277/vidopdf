@@ -1,5 +1,7 @@
 import type {
   CompressionPreset,
+  Decorations,
+  EditsByPage,
   EncodedImage,
   ExportPage,
   ImageExportOptions,
@@ -20,6 +22,14 @@ export interface PlannedOutput {
   readonly pages: readonly ExportPage[];
   /** Recompress the pictures of the built PDF with this preset. */
   readonly compression?: CompressionPreset;
+  /** Stamps, metadata, bookmarks and form values to apply while the pages are assembled. */
+  readonly decorations?: Decorations;
+}
+
+/** What is done to the pages of a split besides cutting them, because it changes their size. */
+export interface SplitFinishing {
+  readonly decorations: Decorations;
+  readonly edits: EditsByPage;
 }
 
 /** What compression did to a finished download, so the dialog can show it before saving. */
@@ -110,6 +120,12 @@ export interface ExportWorkerApi {
     options: ImagePageOptions,
   ): Promise<Result<{ info: PdfInfo; pdf: Uint8Array }, PdfError>>;
   release(sourceId: string): void;
+  /**
+   * Keeps a picture (a PNG or JPEG) that stamps and signatures refer to by `assetId`. Takes
+   * ownership of `bytes`.
+   */
+  registerAsset(assetId: string, bytes: Uint8Array): void;
+  releaseAsset(assetId: string): void;
   /** Builds the files of a plan: one PDF, or a ZIP when there are several. */
   runPlan(
     jobId: number,
@@ -123,6 +139,8 @@ export interface ExportWorkerApi {
     pages: readonly PageRef[],
     limit: number,
     onProgress: (done: number, total: number) => void,
+    /** What will be stamped and cropped on the files, so the measured sizes include it. */
+    finishing?: SplitFinishing,
   ): Promise<Result<SizeSpan[], SplitError>>;
   cancelJob(jobId: number): void;
 }
