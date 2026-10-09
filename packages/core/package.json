@@ -1,0 +1,21 @@
+{
+  "name": "@vidopdf/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure TypeScript domain core for Vidopdf. No DOM, no PDF libraries.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^5.0.3",
+    "fast-check": "^4.10.2",
+    "vitest": "^5.0.3"
+  }
+}

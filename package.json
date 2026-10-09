@@ -1,0 +1,43 @@
+{
+  "name": "vidopdf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-based PDF workspace: merge, split, reorder, rotate and compress PDFs without uploading them. By vidotho.",
+  "license": "MIT",
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": ">=24.21.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @vidopdf/web dev",
+    "build": "pnpm --filter @vidopdf/web build",
+    "lint": "eslint . && pnpm deps:check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @vidopdf/core test && pnpm --filter @vidopdf/pdf-adapters test && pnpm --filter @vidopdf/web test && node --test tools/check-boundaries.test.mjs",
+    "e2e": "pnpm --filter @vidopdf/web e2e",
+    "e2e:webkit": "pnpm --filter @vidopdf/web e2e:webkit",
+    "deps:check": "depcruise packages/core/src packages/pdf-adapters/src apps/web/src --config .dependency-cruiser.cjs",
+    "licenses:check": "node tools/check-licenses.mjs",
+    "size": "pnpm --filter @vidopdf/web size",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@eslint/js": "9.39.5",
+    "dependency-cruiser": "^18.5.0",
+    "eslint": "9.39.5",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "license-checker-rseidelsohn": "^5.0.1",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.71.0"
+  }
+}

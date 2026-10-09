@@ -1,0 +1,55 @@
+{
+  "name": "@vidopdf/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vidopdf web app: React UI, workers and browser adapters.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "e2e": "playwright test",
+    "e2e:webkit": "playwright test -c playwright.webkit.config.ts",
+    "size": "size-limit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@vidopdf/core": "workspace:*",
+    "@vidopdf/pdf-adapters": "workspace:*",
+    "comlink": "^4.4.2",
+    "i18next": "^26.4.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-i18next": "^17.0.16",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.0",
+    "@size-limit/file": "^14.1.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^24.19.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "jsdom": "^30.1.1",
+    "size-limit": "^14.1.0",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  },
+  "size-limit": [
+    {
+      "name": "Initial JavaScript (gzip)",
+      "path": "dist/assets/index-*.js",
+      "limit": "150 kB",
+      "gzip": true
+    }
+  ]
+}

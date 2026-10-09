@@ -1,0 +1,26 @@
+{
+  "name": "@vidopdf/pdf-adapters",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Implementations of the core ports on top of pdfjs-dist and @cantoo/pdf-lib.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./pdf-lib": "./src/pdflib-writer.ts",
+    "./pdfjs": "./src/pdfjs-renderer.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cantoo/pdf-lib": "^2.11.1",
+    "@vidopdf/core": "workspace:*",
+    "pdfjs-dist": "^6.4.299"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "vitest": "^5.0.3"
+  }
+}
