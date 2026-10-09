@@ -14,6 +14,9 @@ export interface RenderedPage<Image> {
   readonly width: number;
   readonly height: number;
   readonly image: Image;
+  /** Size of the page in PDF points as the file shows it (its own rotation applied). */
+  readonly pointsWidth: number;
+  readonly pointsHeight: number;
 }
 
 /** One bookmark of a PDF, resolved to the page it points at. */

@@ -21,7 +21,13 @@ function fakeRenderer(behaviour: { capped?: number[]; fail?: number; slow?: () =
     open: () => Promise.resolve(ok({ pageCount: 5 })),
     renderPage: (_index, width) =>
       Promise.resolve(
-        ok({ width, height: width, image: { close: () => undefined } as unknown as ImageBitmap }),
+        ok({
+          width,
+          height: width,
+          image: { close: () => undefined } as unknown as ImageBitmap,
+          pointsWidth: 595,
+          pointsHeight: 842,
+        }),
       ),
     renderImage: (pageIndex, _options, _signal, rotation) => {
       calls.push({ pageIndex, rotation });

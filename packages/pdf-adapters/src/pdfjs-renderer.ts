@@ -238,7 +238,7 @@ export function createPdfjsRenderer(
     if (doc === undefined) return err(pdfError('internal', 'no document open'));
     if (signal?.aborted === true) return err(pdfError('cancelled'));
     try {
-      const { canvas, width, height } = await paint(
+      const { canvas, width, height, planned } = await paint(
         pageIndex,
         (base) => {
           const scale = pickScale(base.width, base.height, targetWidth);
@@ -246,12 +246,19 @@ export function createPdfjsRenderer(
             scale,
             width: Math.ceil(base.width * scale),
             height: Math.ceil(base.height * scale),
+            points: { width: base.width, height: base.height },
           };
         },
         signal,
         false,
       );
-      return ok({ width, height, image: canvas.transferToImageBitmap() });
+      return ok({
+        width,
+        height,
+        image: canvas.transferToImageBitmap(),
+        pointsWidth: planned.points.width,
+        pointsHeight: planned.points.height,
+      });
     } catch (error) {
       return err(fail(error));
     }
