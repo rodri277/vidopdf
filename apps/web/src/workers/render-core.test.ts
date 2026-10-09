@@ -16,6 +16,7 @@ interface Call {
 
 function fakeRenderer(behaviour: { capped?: number[]; fail?: number; slow?: () => void } = {}) {
   const calls: Call[] = [];
+  const trimmed = { count: 0 };
   const renderer: PdfRenderer<ImageBitmap> = {
     open: () => Promise.resolve(ok({ pageCount: 5 })),
     renderPage: (_index, width) =>
@@ -37,9 +38,13 @@ function fakeRenderer(behaviour: { capped?: number[]; fail?: number; slow?: () =
       return Promise.resolve(ok(image));
     },
     outline: () => Promise.resolve(ok([{ title: 'Intro', pageIndex: 0, level: 1 }])),
+    trim: () => {
+      trimmed.count++;
+      return Promise.resolve();
+    },
     close: () => Promise.resolve(),
   };
-  return { renderer, calls };
+  return { renderer, calls, trimmed };
 }
 
 function setup(
@@ -105,6 +110,7 @@ describe('documents', () => {
         renderPage: vi.fn(),
         renderImage: vi.fn(),
         outline: vi.fn(),
+        trim: vi.fn(),
         close,
       }),
       createZip: () => createZipBuilder(),
@@ -161,6 +167,14 @@ describe('exportImages', () => {
     expect(Object.keys(files).at(-1)).toBe('report-12.jpg');
     expect(files['report-03.jpg']).toEqual(new Uint8Array([2, 7, 7]));
     expect(progress).toEqual(Array.from({ length: 12 }, (_, i) => i + 1));
+  });
+
+  it('trims the caches of pdf.js every twenty pages, so memory does not grow with the document', async () => {
+    const { core, trimmed } = setup();
+    await core.open('s', new Uint8Array(1));
+    const pages = Array.from({ length: 45 }, (_, i) => original(i % 5));
+    await core.exportImages(1, pages, png, 'doc', ignore);
+    expect(trimmed.count).toBe(2);
   });
 
   it('hands each page its own quarter turn, and draws blank pages itself', async () => {

@@ -126,6 +126,17 @@ describe('loading files', () => {
     expect(ctx.store.getState().loading).toBe(0);
   });
 
+  it('gives each worker its own copy of the file, so the main thread keeps none', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    const forExport = vi.mocked(ctx.exportWorker.register).mock.calls[0]?.[1];
+    const forRender = vi.mocked(ctx.renderWorker.open).mock.calls[0]?.[1];
+    expect(forExport).toBeDefined();
+    expect(forRender).toEqual(forExport);
+    expect(forRender?.buffer).not.toBe(forExport?.buffer);
+    expect(ws(ctx).sources[0]?.size).toBe(pdf('three.pdf').size);
+  });
+
   it('reports files that cannot be used and keeps loading the others', async () => {
     const ctx = setup();
     await ctx.store

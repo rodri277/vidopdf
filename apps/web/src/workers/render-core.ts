@@ -38,7 +38,8 @@ export function createRenderCore(deps: RenderCoreDeps) {
 
   async function open(sourceId: string, bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>> {
     const renderer = deps.createRenderer();
-    const opened = await renderer.open(bytes);
+    // The bytes were moved here for this document alone, so pdf.js can have them without a copy.
+    const opened = await renderer.open(bytes, { takeOwnership: true });
     if (opened.ok) documents.set(sourceId, renderer);
     else await renderer.close();
     return opened;
@@ -83,6 +84,9 @@ export function createRenderCore(deps: RenderCoreDeps) {
     );
     return checks.filter(([, supported]) => supported).map(([format]) => format);
   }
+
+  /** Pictures are drawn at print size, so pdf.js's caches of decoded images are trimmed this often. */
+  const TRIM_EVERY = 20;
 
   async function pictureOf(
     page: ImageJobPage,
@@ -155,6 +159,8 @@ export function createRenderCore(deps: RenderCoreDeps) {
       for (const [index, page] of pages.entries()) {
         if (controller.signal.aborted) return err(pdfError('cancelled'));
         const picture = await pictureOf(page, options, controller.signal);
+        if (page.kind === 'original' && (index + 1) % TRIM_EVERY === 0)
+          await documents.get(page.sourceId)?.trim();
         if (!picture.ok) {
           return err(
             pdfError(

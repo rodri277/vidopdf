@@ -130,6 +130,64 @@ describe('renderImage', () => {
   });
 });
 
+describe('open and ownership', () => {
+  function spyingPdfjs() {
+    const seen: { data?: unknown }[] = [];
+    const pdfjs = {
+      GlobalWorkerOptions: { workerSrc: '' },
+      getDocument: (source: Record<string, unknown>) => {
+        seen.push(source);
+        return { promise: Promise.resolve({ numPages: 1 }), destroy: () => Promise.resolve() };
+      },
+    };
+    return { seen, pdfjs: pdfjs as unknown as typeof nodePdfjs };
+  }
+
+  it('copies the bytes by default, because pdf.js moves its buffer away from the caller', async () => {
+    const { seen, pdfjs } = spyingPdfjs();
+    const bytes = new Uint8Array([1, 2, 3]);
+    await createPdfjsRenderer(nodeAssets, { pdfjs }).open(bytes);
+    expect(seen[0]?.data).not.toBe(bytes);
+    expect(seen[0]?.data).toEqual(bytes);
+  });
+
+  it('hands the very same bytes over when the caller gives them away, saving a copy of the file', async () => {
+    const { seen, pdfjs } = spyingPdfjs();
+    const bytes = new Uint8Array([1, 2, 3]);
+    await createPdfjsRenderer(nodeAssets, { pdfjs }).open(bytes, { takeOwnership: true });
+    expect(seen[0]?.data).toBe(bytes);
+  });
+});
+
+describe('trim', () => {
+  it('lets go of cached pages without stopping later renders', async () => {
+    const { renderer } = await open(fixture('mixed-sizes-3p.pdf'));
+    const before = await render(renderer, 0, image());
+    await renderer.trim();
+    const after = await render(renderer, 0, image());
+    expect([after.width, after.height]).toEqual([before.width, before.height]);
+    expect(after.bytes).toEqual(before.bytes);
+    await renderer.close();
+    await expect(renderer.trim()).resolves.toBeUndefined();
+  });
+
+  it('does not fail when pdf.js refuses because a page is still being drawn', async () => {
+    const pdfjs = {
+      GlobalWorkerOptions: { workerSrc: '' },
+      getDocument: () => ({
+        promise: Promise.resolve({
+          numPages: 1,
+          cleanup: () => Promise.reject(new Error('startCleanup: Page 1 is currently rendering.')),
+        }),
+        destroy: () => Promise.resolve(),
+      }),
+    } as unknown as typeof nodePdfjs;
+    const renderer = createPdfjsRenderer(nodeAssets, { pdfjs });
+    await renderer.open(new Uint8Array([1]));
+    await expect(renderer.trim()).resolves.toBeUndefined();
+  });
+});
+
 describe('rotation', () => {
   it('turns the picture by the quarter turn the user added, on top of the page own rotation', async () => {
     const { renderer } = await open(fixture('mixed-sizes-3p.pdf'));

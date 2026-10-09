@@ -150,12 +150,25 @@ export function createPdfjsRenderer(
     doc = undefined;
   }
 
-  async function open(bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>> {
+  async function trim(): Promise<void> {
+    // Keep the fonts: loading them again for every page costs more than they weigh.
+    try {
+      await doc?.cleanup(true);
+    } catch {
+      // pdf.js refuses while a page is still being drawn; the next trim will do it.
+    }
+  }
+
+  async function open(
+    bytes: Uint8Array,
+    options: { readonly takeOwnership?: boolean } = {},
+  ): Promise<Result<PdfInfo, PdfError>> {
     await close();
     try {
       // pdf.js transfers the buffer to its worker, so hand it a copy and keep ours usable.
       task = deps.pdfjs.getDocument({
-        data: bytes.slice(),
+        // pdf.js moves the buffer to its own side, so a caller that keeps using its bytes gets a copy.
+        data: options.takeOwnership === true ? bytes : bytes.slice(),
         // pdfjs-dist 6 has no eval path (the old `isEvalSupported` option is gone) and runs no
         // embedded JavaScript unless a viewer enables scripting, which we never do.
         maxImageSize: MAX_CANVAS_PIXELS,
@@ -270,6 +283,9 @@ export function createPdfjsRenderer(
         rotation,
       );
       const encoded = await encode(canvas, options);
+      // A full-size page is tens of megabytes of pixels; do not wait for the garbage collector.
+      canvas.width = 0;
+      canvas.height = 0;
       const { dpi, capped } = planned.fitted;
       return encoded.ok ? ok({ bytes: encoded.value, width, height, dpi, capped }) : encoded;
     } catch (error) {
@@ -282,5 +298,5 @@ export function createPdfjsRenderer(
     return readOutline(doc);
   }
 
-  return { open, renderPage, renderImage, outline, close };
+  return { open, renderPage, renderImage, outline, trim, close };
 }
