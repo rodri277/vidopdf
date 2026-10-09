@@ -1,6 +1,6 @@
 {
   "name": "vidopdf",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Browser-based PDF workspace: merge, split, reorder, rotate and compress PDFs without uploading them. By vidotho.",
@@ -16,13 +16,14 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter @vidopdf/core test && pnpm --filter @vidopdf/pdf-adapters test && pnpm --filter @vidopdf/web test && node --test tools/check-boundaries.test.mjs",
+    "test": "pnpm --filter @vidopdf/core test && pnpm --filter @vidopdf/pdf-adapters test && pnpm --filter @vidopdf/web test && pnpm --filter @vidopdf/benchmarks test && node --test tools/check-boundaries.test.mjs",
     "e2e": "pnpm --filter @vidopdf/web e2e",
     "e2e:webkit": "pnpm --filter @vidopdf/web e2e:webkit",
     "deps:check": "depcruise packages/core/src packages/pdf-adapters/src apps/web/src --config .dependency-cruiser.cjs",
     "licenses:check": "node tools/check-licenses.mjs",
     "size": "pnpm --filter @vidopdf/web size",
-    "prepare": "husky"
+    "prepare": "husky",
+    "bench": "pnpm --filter @vidopdf/benchmarks bench"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

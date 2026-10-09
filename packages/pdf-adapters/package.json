@@ -1,6 +1,6 @@
 {
   "name": "@vidopdf/pdf-adapters",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Implementations of the core ports on top of pdfjs-dist and @cantoo/pdf-lib.",
