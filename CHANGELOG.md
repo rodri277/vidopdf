@@ -2,6 +2,16 @@
 
 Generated from commit messages by `node tools/changelog.mjs`.
 
+## v0.3.0 (2026-10-09)
+
+### Features
+
+- Phase 2 block 5: benchmarks, memory work and the Phase 2 close (#12)
+- Phase 2 block 4: the interface for split, extract and pictures (#11)
+- Phase 2 block 3: workers and state for split, extract, pictures and import (#10)
+- Phase 2 block 2: adapters for outlines, images, ZIP and image to PDF (#9)
+- Phase 2 block 1: split strategies, multi-output plans and image logic in core (#8)
+
 ## v0.2.0 (2026-10-09)
 
 ### Features
@@ -13,17 +23,11 @@ Generated from commit messages by `node tools/changelog.mjs`.
 
 ### Tests
 
-- **adapters:** check three reordered files with qpdf and pixels
 - Phase 1 block 2: fixtures, pixel comparison and copyPages limits (#3)
-
-### Build
-
-- generate the changelog from Conventional Commits
 
 ### Documentation
 
-- close Phase 1 in the READMEs with measured numbers
-- add ADRs 010 to 012 for the workspace, thumbnails and grid
+- close Phase 1 (ADRs, READMEs, changelog, three-file qpdf check) (#7)
 
 ## v0.1.0 (2026-10-09)
 
