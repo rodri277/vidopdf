@@ -9,7 +9,7 @@ Each record states the context, the decision, the alternatives that were rejecte
 | [003](003-layered-architecture.md)               | Layered architecture and enforced dependency rules | 0           |
 | [004](004-compression-strategy.md)               | Compression strategy, with the spike data          | 3           |
 | [005](005-license-policy.md)                     | License policy                                     | 0           |
-| 006                                              | Encryption and forms engine                        | 4 (pending) |
+| [006](006-encryption-forms-fonts-engine.md)      | Encryption, forms, fonts and stamping engine       | 4           |
 | 007                                              | Offline and cache strategy                         | 5 (pending) |
 | [008](008-toolchain-constraints.md)              | Toolchain version constraints                      | 0           |
 | [009](009-pdfjs-inside-a-worker.md)              | pdf.js inside a Web Worker                         | 0           |
