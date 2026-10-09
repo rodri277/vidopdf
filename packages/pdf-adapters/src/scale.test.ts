@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_CANVAS_PIXELS, pickScale } from './scale';
+import { MAX_CANVAS_PIXELS } from '@vidopdf/core';
+import { pickScale } from './scale';
 
 describe('pickScale', () => {
   it('scales a normal page to the requested width', () => {

@@ -1,5 +1,4 @@
-/** Largest canvas we are willing to allocate; protects against memory bombs (SPEC §Seguridad). */
-export const MAX_CANVAS_PIXELS = 16_777_216; // 4096 x 4096
+import { MAX_CANVAS_PIXELS } from '@vidopdf/core';
 
 /** Chooses a render scale that hits the requested width without exceeding the pixel budget. */
 export function pickScale(pageWidth: number, pageHeight: number, targetWidth: number): number {

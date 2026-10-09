@@ -1,3 +1,4 @@
+import { safeFileName } from '@vidopdf/core';
 import type { FileIO } from '@vidopdf/core';
 
 interface SavePickerWindow {
@@ -10,15 +11,6 @@ interface SavePickerWindow {
       close: () => Promise<void>;
     }>;
   }>;
-}
-
-// eslint-disable-next-line no-control-regex -- control characters are exactly what we remove
-const FORBIDDEN = /[\u0000-\u001f<>:"/\\|?*]+/g;
-
-/** Strips path separators and control characters so a name can never escape the target folder. */
-export function sanitizeFileName(name: string): string {
-  const cleaned = name.replace(FORBIDDEN, '_').trim().replace(/^\.+/, '');
-  return cleaned === '' ? 'document.pdf' : cleaned.slice(0, 120);
 }
 
 function download(blob: Blob, name: string): void {
@@ -34,7 +26,7 @@ function download(blob: Blob, name: string): void {
 
 export const browserFileIO: FileIO = {
   async save(bytes, suggestedName, mimeType) {
-    const name = sanitizeFileName(suggestedName);
+    const name = safeFileName(suggestedName, 'document.pdf');
     const blob = new Blob([bytes as BlobPart], { type: mimeType });
     const picker = (window as SavePickerWindow).showSaveFilePicker;
     if (picker !== undefined) {

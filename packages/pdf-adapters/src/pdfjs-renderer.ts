@@ -1,7 +1,7 @@
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist';
-import { err, ok, pdfError } from '@vidopdf/core';
-import { MAX_CANVAS_PIXELS, pickScale } from './scale';
+import { MAX_CANVAS_PIXELS, err, ok, pdfError } from '@vidopdf/core';
+import { pickScale } from './scale';
 import type {
   PdfError,
   PdfErrorKind,
