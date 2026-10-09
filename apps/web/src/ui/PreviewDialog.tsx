@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PageRef, RenderedPage } from '@vidopdf/core';
-import { useSession } from '../state/session-store';
+import { useSession } from '../state/session';
 import { useUi } from '../state/ui-store';
 import { renderWorker } from '../workers/clients';
 import { GRID_ID } from './PageGrid';

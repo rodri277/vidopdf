@@ -2,7 +2,8 @@ import { useTranslation } from 'react-i18next';
 import { formatBytes } from './format';
 import { sourceColor } from './source-colors';
 import { MEMORY_WARNING_BYTES } from '@vidopdf/core';
-import { totalLoadedBytes, useSession } from '../state/session-store';
+import { useSession } from '../state/session';
+import { totalLoadedBytes } from '../state/session-store';
 
 export function FilesPanel() {
   const { t } = useTranslation();

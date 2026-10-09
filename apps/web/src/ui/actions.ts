@@ -1,7 +1,7 @@
 import { indexOfPage, redoLabel, undoLabel } from '@vidopdf/core';
 import type { CommandLabel } from '@vidopdf/core';
 import { i18next } from '../i18n';
-import { useSession } from '../state/session-store';
+import { useSession } from '../state/session';
 import { useUi } from '../state/ui-store';
 
 /**

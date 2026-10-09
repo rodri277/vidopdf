@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useRef } from 'react';
 import type { ChangeEvent } from 'react';
-import { useSession } from '../state/session-store';
+import { useSession } from '../state/session';
 import { ContextPanel } from './ContextPanel';
 import { ExportDialog } from './ExportDialog';
 import { FilesPanel } from './FilesPanel';

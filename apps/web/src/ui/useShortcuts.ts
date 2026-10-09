@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useSession } from '../state/session-store';
+import { useSession } from '../state/session';
 import { useUi } from '../state/ui-store';
 import {
   deleteSelection,

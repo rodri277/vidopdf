@@ -82,6 +82,10 @@ export const es = {
     title: 'Exportar PDF',
     running: 'Montando el PDF… {{done}} de {{total}} páginas',
     ready: 'Listo: {{pages}} páginas, {{size}}.',
+    readyMany: 'Listo: {{files}} archivos, {{pages}} páginas, {{size}}.',
+    capped_one: 'Una página era demasiado grande y se dibujó con menos resolución que la pedida.',
+    capped_other:
+      '{{count}} páginas eran demasiado grandes y se dibujaron con menos resolución que la pedida.',
     readyHint: 'Revisa el peso y guarda el archivo cuando quieras.',
     failed: 'No se pudo crear el PDF. Ninguno de tus archivos ha cambiado.',
     save: 'Guardar PDF',
@@ -124,7 +128,8 @@ export const es = {
     unsupported: '{{name}}: este tipo de PDF no se admite.',
     cancelled: 'Operación cancelada.',
     internal: '{{name}}: error inesperado. Prueba con otro archivo.',
-    notPdf: '{{name}} no es un PDF y se ha ignorado.',
+    notPdf: '{{name}} no es un PDF ni una imagen JPEG o PNG, y se ha ignorado.',
+    unsupportedImage: '{{name}}: solo se admiten imágenes JPEG y PNG.',
   },
   footer: {
     licenses: 'Licencias',

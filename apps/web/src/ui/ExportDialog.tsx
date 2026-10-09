@@ -1,43 +1,53 @@
 import { useTranslation } from 'react-i18next';
-import { useSession } from '../state/session-store';
+import { useSession } from '../state/session';
 import { Modal } from './Modal';
 import { formatBytes } from './format';
 
-/** Progress while the PDF is built, then its size, before anything is written to disk. */
+/** Progress while the files are built, then what came out and its size, before anything is written to disk. */
 export function ExportDialog() {
   const { t } = useTranslation();
-  const state = useSession((s) => s.exportState);
-  const { cancelExport, dismissExport, saveExport } = useSession.getState();
-  const open = state.phase !== 'idle';
-  const close = state.phase === 'running' ? cancelExport : dismissExport;
+  const job = useSession((s) => s.job);
+  const { cancelJob, dismissJob, saveResult } = useSession.getState();
+  const open = job.phase !== 'idle';
+  const close = job.phase === 'running' ? cancelJob : dismissJob;
 
   return (
     <Modal open={open} labelledBy="export-title" onClose={close} className="export-dialog">
       <h2 id="export-title">{t('export.title')}</h2>
-      {state.phase === 'running' && (
+      {job.phase === 'running' && (
         <>
-          <progress max={state.total} value={state.done} aria-label={t('export.title')} />
+          <progress max={job.total} value={job.done} aria-label={t('export.title')} />
           <p role="status" className="mono">
-            {t('export.running', { done: state.done, total: state.total })}
+            {t('export.running', { done: job.done, total: job.total })}
           </p>
           <div className="modal-actions">
-            <button type="button" className="btn" onClick={cancelExport}>
+            <button type="button" className="btn" onClick={cancelJob}>
               {t('export.cancel')}
             </button>
           </div>
         </>
       )}
-      {state.phase === 'ready' && (
+      {job.phase === 'ready' && (
         <>
           <p role="status">
-            {t('export.ready', {
-              pages: state.pageCount,
-              size: formatBytes(state.bytes.byteLength),
-            })}
+            {job.result.fileCount > 1
+              ? t('export.readyMany', {
+                  files: job.result.fileCount,
+                  pages: job.result.pageCount,
+                  size: formatBytes(job.result.bytes.byteLength),
+                })
+              : t('export.ready', {
+                  pages: job.result.pageCount,
+                  size: formatBytes(job.result.bytes.byteLength),
+                })}
           </p>
+          <p className="mono">{job.result.name}</p>
+          {job.result.cappedPages > 0 && (
+            <p className="muted">{t('export.capped', { count: job.result.cappedPages })}</p>
+          )}
           <p className="muted">{t('export.readyHint')}</p>
           <div className="modal-actions">
-            <button type="button" className="btn" onClick={dismissExport}>
+            <button type="button" className="btn" onClick={dismissJob}>
               {t('export.cancel')}
             </button>
             <button
@@ -45,18 +55,18 @@ export function ExportDialog() {
               className="btn btn-primary"
               // eslint-disable-next-line jsx-a11y/no-autofocus -- the one action this dialog exists for
               autoFocus
-              onClick={() => void saveExport()}
+              onClick={() => void saveResult()}
             >
               {t('export.save')}
             </button>
           </div>
         </>
       )}
-      {state.phase === 'failed' && (
+      {job.phase === 'failed' && (
         <>
           <p role="alert">{t('export.failed')}</p>
           <div className="modal-actions">
-            <button type="button" className="btn" onClick={dismissExport}>
+            <button type="button" className="btn" onClick={dismissJob}>
               {t('export.close')}
             </button>
           </div>
