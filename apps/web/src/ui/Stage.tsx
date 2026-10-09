@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSession } from '../state/session-store';
+import { useSession } from '../state/session';
 import { THUMB_MAX, THUMB_MIN, useUi } from '../state/ui-store';
 import { PageGrid } from './PageGrid';
 

@@ -2,7 +2,7 @@ import { PDFDocument } from '@cantoo/pdf-lib';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MAX_CANVAS_PIXELS } from '@vidopdf/core';
 import type { ImageExportOptions, PdfRenderer } from '@vidopdf/core';
-import { canEncodeImage, createPdfjsRenderer } from './pdfjs-renderer';
+import { canEncodeImage, createPdfjsRenderer, encodeBlankImage } from './pdfjs-renderer';
 import { decode, napiCanvas, near } from './testing/canvas';
 import { fixture } from './testing/fixtures';
 import { nodeAssets, nodeDocumentOptions, nodePdfjs } from './testing/pdfjs-node';
@@ -127,6 +127,71 @@ describe('renderImage', () => {
       ok: false,
       error: { kind: 'internal' },
     });
+  });
+});
+
+describe('rotation', () => {
+  it('turns the picture by the quarter turn the user added, on top of the page own rotation', async () => {
+    const { renderer } = await open(fixture('mixed-sizes-3p.pdf'));
+    const plain = await render(renderer, 0, image());
+    expect([plain.width, plain.height]).toEqual([595, 842]);
+    const turned = await renderer.renderImage(0, image(), undefined, 90);
+    expect(turned.ok && [turned.value.width, turned.value.height]).toEqual([842, 595]);
+    const half = await renderer.renderImage(0, image(), undefined, 180);
+    expect(half.ok && [half.value.width, half.value.height]).toEqual([595, 842]);
+
+    const rotated = await open(fixture('rotated-2p.pdf')); // page 2 already has /Rotate 90
+    const back = await rotated.renderer.renderImage(1, image(), undefined, 270); // 90 + 270 = upright again
+    expect(back.ok && [back.value.width, back.value.height]).toEqual([595, 842]);
+  });
+
+  it('actually moves the content: the top-left of a turned page shows what was at its bottom-left', async () => {
+    const { renderer } = await open(fixture('images-2p.pdf'));
+    const plain = await decode((await render(renderer, 0, image())).bytes);
+    const result = await renderer.renderImage(0, image(), undefined, 90);
+    if (!result.ok) throw new Error('render failed');
+    const turned = await decode(result.value.bytes);
+    // Quarter turn clockwise: turned (x, y) shows plain (y, height - 1 - x).
+    for (const [x, y] of [
+      [100, 100],
+      [700, 300],
+      [50, 500],
+    ] as const) {
+      const [r, g, b] = plain.at(y, plain.height - 1 - x);
+      expect(near(turned.at(x, y), [r, g, b], 12)).toBe(true);
+    }
+  });
+});
+
+describe('encodeBlankImage', () => {
+  it('makes white paper of the page size at the resolution asked, swapping for a quarter turn', async () => {
+    const flat = await encodeBlankImage(595, 842, 0, image({ dpi: 144 }), napiCanvas());
+    expect(flat.ok && [flat.value.width, flat.value.height, flat.value.capped]).toEqual([
+      1190,
+      1684,
+      false,
+    ]);
+    const sideways = await encodeBlankImage(595, 842, 90, image(), napiCanvas());
+    if (!sideways.ok) throw new Error('blank failed');
+    expect([sideways.value.width, sideways.value.height]).toEqual([842, 595]);
+    expect((await decode(sideways.value.bytes)).at(10, 10)).toEqual([255, 255, 255, 255]);
+  });
+
+  it('says so when the page is too large, and when the format cannot be encoded', async () => {
+    const huge = await encodeBlankImage(9000, 9000, 0, image({ dpi: 300 }), napiCanvas());
+    expect(huge.ok && huge.value.capped).toBe(true);
+    const nope = await encodeBlankImage(
+      100,
+      100,
+      0,
+      image({ format: 'webp' }),
+      napiCanvas(['image/png']),
+    );
+    expect(nope).toMatchObject({ ok: false, error: { kind: 'unsupported' } });
+    const broken = await encodeBlankImage(100, 100, 0, image(), () => {
+      throw new Error('no canvas');
+    });
+    expect(broken).toMatchObject({ ok: false });
   });
 });
 

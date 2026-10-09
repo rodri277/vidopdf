@@ -5,7 +5,7 @@ import type { DragStartEvent } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import { renderKey } from '@vidopdf/core';
 import type { PageRef } from '@vidopdf/core';
-import { useSession } from '../state/session-store';
+import { useSession } from '../state/session';
 import { useUi } from '../state/ui-store';
 import { thumbnails } from '../thumbnails/thumbnails';
 import { moveSelectionToGap } from './actions';

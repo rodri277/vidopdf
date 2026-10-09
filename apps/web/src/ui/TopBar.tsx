@@ -3,7 +3,7 @@ import { redoLabel, undoLabel } from '@vidopdf/core';
 import type { CommandLabel } from '@vidopdf/core';
 import { languages, setLanguage } from '../i18n';
 import type { Language } from '../i18n';
-import { useSession } from '../state/session-store';
+import { useSession } from '../state/session';
 import { redoAction, undoAction } from './actions';
 
 const LANGUAGE_NAMES: Record<Language, string> = { es: 'Español', en: 'English' };
@@ -16,7 +16,7 @@ export function TopBar({ onAddFiles }: TopBarProps) {
   const { t, i18n } = useTranslation();
   const session = useSession((state) => state.session);
   const hasPages = session.workspace.pages.length > 0;
-  const exporting = useSession((state) => state.exportState.phase === 'running');
+  const exporting = useSession((state) => state.job.phase === 'running');
   const { startExport } = useSession.getState();
 
   const undoWhat = undoLabel(session);

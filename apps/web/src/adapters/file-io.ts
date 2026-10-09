@@ -13,6 +13,17 @@ interface SavePickerWindow {
   }>;
 }
 
+/** ".pdf" for "report.pdf"; falls back to the extension the MIME type suggests. */
+function extensionOf(name: string): string {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(dot).toLowerCase() : '.pdf';
+}
+
+function kindOf(mimeType: string): string {
+  if (mimeType === 'application/zip') return 'ZIP';
+  return mimeType.startsWith('image/') ? mimeType.slice(6).toUpperCase() : 'PDF';
+}
+
 function download(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -33,7 +44,7 @@ export const browserFileIO: FileIO = {
       try {
         const handle = await picker({
           suggestedName: name,
-          types: [{ description: 'PDF', accept: { [mimeType]: ['.pdf'] } }],
+          types: [{ description: kindOf(mimeType), accept: { [mimeType]: [extensionOf(name)] } }],
         });
         const writable = await handle.createWritable();
         await writable.write(blob);

@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { useSession } from '../state/session-store';
+import { useSession } from '../state/session';
 import { deleteSelection, duplicateSelection, insertBlankPage, rotateSelection } from './actions';
 
 export function ContextPanel() {
   const { t } = useTranslation();
   const workspace = useSession((state) => state.session.workspace);
   const count = workspace.selection.length;
-  const exporting = useSession((state) => state.exportState.phase !== 'idle');
+  const exporting = useSession((state) => state.job.phase !== 'idle');
   const { startExport } = useSession.getState();
 
   return (
