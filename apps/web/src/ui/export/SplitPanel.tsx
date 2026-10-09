@@ -11,6 +11,7 @@ import { useSession } from '../../state/session';
 import { sameSpec, specFromDraft, usableBookmarks } from '../../state/split';
 import type { SplitKind } from '../../state/split';
 import { useUi } from '../../state/ui-store';
+import { CompressionField } from './CompressionField';
 import { formatBytes } from '../format';
 import { describePages, splitErrorMessage } from './messages';
 
@@ -274,6 +275,7 @@ export function SplitPanel() {
       {draft.kind === 'size' && <SizeFields />}
 
       <Preview stale={stale} />
+      <CompressionField />
       <div className="panel-actions">
         <button
           type="button"

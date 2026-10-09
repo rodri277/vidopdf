@@ -85,6 +85,7 @@ export const es = {
     tabsLabel: 'Qué quieres obtener',
     tabs: { pdf: 'Un PDF', split: 'Dividir', images: 'Imágenes' },
     running: 'Montando los archivos… {{done}} de {{total}} páginas',
+    runningCompressed: 'Montando y comprimiendo… {{percent}} %',
     runningImages: 'Dibujando las páginas… {{done}} de {{total}}',
     ready: 'Listo: {{pages}} páginas, {{size}}.',
     readyMany: 'Listo: {{files}} archivos, {{pages}} páginas, {{size}}.',
@@ -102,6 +103,17 @@ export const es = {
     back: 'Volver',
     cancel: 'Cancelar',
     close: 'Cerrar',
+    compressed: 'Antes de comprimir: {{before}}. Ahora: {{after}} ({{percent}} % menos).',
+    compressedNothing:
+      'No había nada que ahorrar en las imágenes de este archivo (o ya estaban ligeras): se deja como estaba.',
+    compression: {
+      legend: 'Reducir el peso',
+      off: 'No comprimir',
+      screen: 'Pantalla: el más pequeño (96 ppp)',
+      balanced: 'Equilibrado: para enviar por correo (150 ppp)',
+      print: 'Impresión: más calidad (220 ppp)',
+      hint: 'Reduce las fotos y los escaneos de dentro del PDF; el texto no cambia. Las imágenes del archivo nuevo pierden algo de calidad, pero tus originales no se tocan. Verás el peso real antes de guardar.',
+    },
     pdf: {
       summary_one: 'Se exportará un PDF de {{count}} página.',
       summary_other: 'Se exportará un PDF de {{count}} páginas.',
@@ -234,7 +246,34 @@ export const es = {
     unsupportedImage: '{{name}}: solo se admiten imágenes JPEG y PNG.',
   },
   footer: {
+    privacy: 'Privacidad',
+    legal: 'Aviso legal',
+    terms: 'Términos',
     licenses: 'Licencias',
     version: 'Versión {{version}}',
+    nav: 'Información legal',
+  },
+  legal: {
+    navLabel: 'Información legal',
+    back: 'Volver a mis archivos',
+    updated: 'Última revisión: {{date}}.',
+    licenses: {
+      title: 'Licencias',
+      intro:
+        'Vidopdf es software libre con licencia MIT (© 2026 vidotho). Funciona gracias a estos componentes de terceros, cada uno con su licencia. Esta lista se genera al compilar y se comprueba en cada cambio.',
+      source: 'Código fuente en GitHub',
+      packages: 'Paquetes que se envían al navegador',
+      name: 'Nombre',
+      version: 'Versión',
+      license: 'Licencia',
+      bundled: 'Incluidos con pdf.js',
+      bundledHint:
+        'Se sirven desde este mismo sitio (/pdfjs/): descodificadores de imagen, mapas de caracteres, fuentes estándar y perfiles de color.',
+      texts: 'Textos completos',
+      textsHint: 'Los avisos de copyright y los textos de licencia de cada componente.',
+      fullTexts: 'Mostrar los textos completos',
+      fullTextsFailed: 'No se pudieron cargar los textos. Prueba a recargar la página.',
+      loading: 'Cargando…',
+    },
   },
 } as const;

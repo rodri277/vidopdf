@@ -119,3 +119,49 @@ test('memory while creating pictures from 500 scanned pages', async ({ browser }
   record({ scenario, metric: 'time', value: Date.now() - started, unit: 'ms', cpuSlowdown: 1 });
   await context.close();
 });
+
+test('time and memory while compressing 500 scanned pages', async ({ browser }) => {
+  const probe = await MemoryProbe.create(browser);
+  const context = await browser.newContext({
+    baseURL: 'http://localhost:4174',
+    viewport: { width: 1280, height: 800 },
+  });
+  const page = await context.newPage();
+  await openApp(page);
+  await loadDocuments(page, [files.scanSharp500], 500);
+  await waitForThumbnails(page);
+  await page.waitForTimeout(800);
+  const before = await probe.rendererBytes();
+
+  await page.getByRole('banner').getByRole('button', { name: 'Exportar' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Exportar' });
+  await dialog.getByRole('radio', { name: /^Equilibrado/ }).check();
+  const started = Date.now();
+  const made = await probe.peakDuring(async () => {
+    await dialog.getByRole('button', { name: 'Exportar PDF' }).click();
+    await expect(dialog.locator('.result-name')).toBeVisible({ timeout: 900_000 });
+  });
+  const elapsed = Date.now() - started;
+  const summary = (await dialog.getByText(/Antes de comprimir|No había nada/).textContent()) ?? '';
+  const sizes = /Antes de comprimir: ([\d.,]+) (\w+)\. Ahora: ([\d.,]+) (\w+)/.exec(summary);
+  const scenario = 'Compress 500 scanned pages (balanced)';
+  record(at(scenario, 'before', before));
+  record(at(scenario, 'peak while building and compressing', made.peak));
+  record({ scenario, metric: 'time', value: elapsed, unit: 'ms', cpuSlowdown: 1 });
+  record({
+    scenario,
+    metric: 'reduction of the file',
+    value: Number(/(\d+) % menos/.exec(summary)?.[1] ?? 0),
+    unit: '%',
+    cpuSlowdown: 1,
+  });
+  expect(sizes).not.toBeNull();
+  record({
+    scenario,
+    metric: 'size of the PDF',
+    value: mb(statSync(files.scanSharp500).size),
+    unit: 'MB',
+    cpuSlowdown: 1,
+  });
+  await context.close();
+});

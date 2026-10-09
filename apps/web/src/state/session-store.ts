@@ -5,6 +5,7 @@ import {
   buildExportPlan,
   buildExtractPlan,
   buildSplitPlan,
+  outputCompression,
   clearSelection,
   createSession,
   deletePages,
@@ -27,6 +28,7 @@ import {
 } from '@vidopdf/core';
 import type {
   Command,
+  CompressionPreset,
   ExportPlan,
   ImageExportOptions,
   ImageFormat,
@@ -73,6 +75,8 @@ export type JobState =
       readonly job: JobKind;
       readonly done: number;
       readonly total: number;
+      /** The bar covers building and then compressing, so "pages" would be the wrong word. */
+      readonly compressing?: boolean;
     }
   | { readonly phase: 'ready'; readonly job: JobKind; readonly result: ProducedFile }
   | { readonly phase: 'failed'; readonly job: JobKind; readonly failure: JobFailure };
@@ -96,6 +100,9 @@ export interface PendingImage {
 }
 
 export type ImageScope = 'all' | 'selection';
+
+/** What the user chose for the pictures inside the PDFs they export. */
+export type CompressionChoice = CompressionPreset | 'off';
 
 /** What the store needs from the outside world; tests supply fakes. */
 export interface SessionDeps {
@@ -121,6 +128,9 @@ export interface SessionState {
   encodable: readonly ImageFormat[] | undefined;
   job: JobState;
   split: SplitPreview;
+  /** Applies to every PDF the app builds: the whole file, an extract and the parts of a split. */
+  compression: CompressionChoice;
+  setCompression: (choice: CompressionChoice) => void;
   addFiles: (files: readonly File[]) => Promise<void>;
   addImages: (options: ImagePageOptions) => Promise<void>;
   discardImages: () => void;
@@ -170,11 +180,18 @@ function toImageJobPage(page: PageRef): ImageJobPage {
 }
 
 function toPlanned(plan: ExportPlan): PlannedOutput[] {
-  return plan.outputs.map((output) => ({
-    name: output.name,
-    pages: output.steps.flatMap((step) => step.pages),
-  }));
+  return plan.outputs.map((output) => {
+    const compression = outputCompression(output);
+    return {
+      name: output.name,
+      pages: output.steps.flatMap((step) => (step.kind === 'assemble' ? step.pages : [])),
+      ...(compression === undefined ? {} : { compression }),
+    };
+  });
 }
+
+const presetOf = (choice: CompressionChoice): CompressionPreset | undefined =>
+  choice === 'off' ? undefined : choice;
 
 function pagesFor(workspace: Workspace, scope: ImageScope): readonly PageRef[] {
   if (scope === 'all') return workspace.pages;
@@ -277,11 +294,11 @@ export function createSessionStore(deps: SessionDeps) {
     }
 
     /** Progress travels on its own message channel and can arrive after the result, so it may only update a job still running. */
-    function progressTo(job: JobKind, jobId: number) {
+    function progressTo(jobId: number) {
       return proxy((done: number, total: number) => {
         const current = get().job;
         if (jobCounter === jobId && current.phase === 'running' && done > current.done) {
-          set({ job: { phase: 'running', job, done, total } });
+          set({ job: { ...current, done, total } });
         }
       });
     }
@@ -306,10 +323,13 @@ export function createSessionStore(deps: SessionDeps) {
       cancelActive = () => {
         deps.exportWorker().cancelJob(jobId);
       };
-      set({ job: { phase: 'running', job, done: 0, total } });
+      const compressing = outputs.some((output) => output.compression !== undefined);
+      set({
+        job: { phase: 'running', job, done: 0, total, ...(compressing ? { compressing } : {}) },
+      });
       finish(
         job,
-        await deps.exportWorker().runPlan(jobId, outputs, archiveName, progressTo(job, jobId)),
+        await deps.exportWorker().runPlan(jobId, outputs, archiveName, progressTo(jobId)),
       );
     }
 
@@ -324,6 +344,11 @@ export function createSessionStore(deps: SessionDeps) {
       encodable: undefined,
       job: { phase: 'idle' },
       split: { phase: 'idle' },
+      compression: 'off',
+
+      setCompression(compression) {
+        set({ compression });
+      },
 
       async addFiles(files) {
         set({ rejections: [] });
@@ -500,18 +525,26 @@ export function createSessionStore(deps: SessionDeps) {
 
       async startExport() {
         if (workspace().pages.length > 0)
-          await runPlan('pdf', buildExportPlan(workspace()), `${baseName()}.zip`);
+          await runPlan(
+            'pdf',
+            buildExportPlan(workspace(), baseName(), presetOf(get().compression)),
+            `${baseName()}.zip`,
+          );
       },
 
       async extractSelection() {
-        const plan = buildExtractPlan(workspace());
+        const plan = buildExtractPlan(workspace(), baseName(), presetOf(get().compression));
         if (plan !== undefined) await runPlan('extract', plan, `${baseName()}_extract.zip`);
       },
 
       async runSplit() {
         const split = get().split;
         if (split.phase !== 'ready') return;
-        await runPlan('split', buildSplitPlan(split.groups, baseName()), `${baseName()}_split.zip`);
+        await runPlan(
+          'split',
+          buildSplitPlan(split.groups, baseName(), presetOf(get().compression)),
+          `${baseName()}_split.zip`,
+        );
       },
 
       async exportImages(options, scope) {
@@ -529,7 +562,7 @@ export function createSessionStore(deps: SessionDeps) {
             pages.map(toImageJobPage),
             options,
             stripExtension(baseName()),
-            progressTo('images', jobId),
+            progressTo(jobId),
           );
         finish('images', outcome);
       },
