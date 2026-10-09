@@ -619,3 +619,57 @@ describe('compression', () => {
     await done;
   });
 });
+
+describe('when a worker call fails outright', () => {
+  const boom = () => Promise.reject(new Error('worker gone'));
+
+  it('a failed export ends in a failure the user can dismiss, not a job that runs forever', async () => {
+    const ctx = setup({ exportWorker: { runPlan: vi.fn(boom) } });
+    await load(ctx, pdf('three.pdf'));
+    await ctx.store.getState().startExport();
+    expect(ctx.store.getState().job).toMatchObject({
+      phase: 'failed',
+      failure: { kind: 'internal' },
+    });
+  });
+
+  it('a failed picture export and a failed size split end too', async () => {
+    const ctx = setup({
+      exportWorker: { splitBySize: vi.fn(boom) },
+      renderWorker: { exportImages: vi.fn(boom) },
+    });
+    await load(ctx, pdf('three.pdf'));
+    await ctx.store.getState().exportImages(imageOptions, 'all');
+    expect(ctx.store.getState().job).toMatchObject({ phase: 'failed' });
+    ctx.store.getState().dismissJob();
+    await ctx.store.getState().previewSplit({ mode: 'size', limitBytes: 1000 });
+    expect(ctx.store.getState().split).toMatchObject({ phase: 'failed' });
+  });
+
+  it('a file that cannot be loaded is reported, the others still load and nothing stays busy', async () => {
+    let calls = 0;
+    const ctx = setup({
+      exportWorker: {
+        register: vi.fn(() => {
+          calls++;
+          return calls === 1 ? boom() : Promise.resolve(ok({ pageCount: 3 }));
+        }),
+      },
+    });
+    await ctx.store.getState().addFiles([pdf('three.pdf'), pdf('three-b.pdf')]);
+    expect(ctx.store.getState().loading).toBe(0);
+    expect(ctx.store.getState().rejections).toMatchObject([
+      { name: 'three.pdf', kind: 'internal' },
+    ]);
+    expect(ws(ctx).pages).toHaveLength(3);
+  });
+
+  it('a save that fails leaves the result ready to try again', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    await ctx.store.getState().startExport();
+    vi.mocked(ctx.save).mockImplementationOnce(boom);
+    await expect(ctx.store.getState().saveResult()).resolves.toBeUndefined();
+    expect(ctx.store.getState().job).toMatchObject({ phase: 'ready' });
+  });
+});

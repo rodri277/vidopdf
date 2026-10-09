@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { proxy, transfer } from 'comlink';
 import {
   addSource,
+  err,
   buildExportPlan,
   buildExtractPlan,
   buildSplitPlan,
@@ -14,6 +15,7 @@ import {
   execute,
   insertBlankPage,
   movePagesToGap,
+  pdfError,
   redo,
   rotatePages,
   selectAll,
@@ -213,6 +215,11 @@ interface Loaded {
   readonly source: SourceFile;
 }
 
+/** A rejected promise (a worker that failed outright, a file the browser cannot read) as text. */
+function describeFailure(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function isLoaded(entry: Loaded | Rejection): entry is Loaded {
   return 'source' in entry;
 }
@@ -248,6 +255,27 @@ export function createSessionStore(deps: SessionDeps) {
       ) => Promise<{ pageCount: number; forRender?: Uint8Array } | PdfErrorKind>,
     ): Promise<Loaded | Rejection> {
       const id = deps.newId();
+      try {
+        return await registerAs(id, file, send);
+      } catch {
+        // Whatever half-finished state a worker kept for this file is no use to anyone now.
+        deps.exportWorker().release(id);
+        void deps
+          .renderWorker()
+          .release(id)
+          .catch(() => undefined);
+        return { id, name: file.name, kind: 'internal' };
+      }
+    }
+
+    async function registerAs(
+      id: string,
+      file: File,
+      send: (
+        id: string,
+        bytes: Uint8Array<ArrayBuffer>,
+      ) => Promise<{ pageCount: number; forRender?: Uint8Array } | PdfErrorKind>,
+    ): Promise<Loaded | Rejection> {
       const bytes = await readFresh(file);
       const fingerprint = await fingerprintOf(bytes, file);
       const sent = await send(id, bytes);
@@ -285,6 +313,17 @@ export function createSessionStore(deps: SessionDeps) {
           ? { pageCount: made.value.info.pageCount, forRender: made.value.pdf }
           : made.error.kind;
       });
+    }
+
+    async function addOne(file: File): Promise<void> {
+      const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
+      const kind = classifyFile(head, file.name, file.type);
+      if (kind.kind === 'pdf') adopt(await loadPdf(file));
+      else if (kind.kind === 'image') {
+        set((state) => ({
+          pendingImages: [...state.pendingImages, { id: deps.newId(), file }],
+        }));
+      } else adopt({ id: deps.newId(), name: file.name, kind: kind.reason });
     }
 
     function adopt(entry: Loaded | Rejection): void {
@@ -329,8 +368,16 @@ export function createSessionStore(deps: SessionDeps) {
       });
       finish(
         job,
-        await deps.exportWorker().runPlan(jobId, outputs, archiveName, progressTo(jobId)),
+        await deps
+          .exportWorker()
+          .runPlan(jobId, outputs, archiveName, progressTo(jobId))
+          .catch(failedOutright),
       );
+    }
+
+    /** A worker call that threw instead of answering with a result. */
+    function failedOutright(error: unknown) {
+      return err(pdfError('internal', describeFailure(error)));
     }
 
     const baseName = () => suggestedBaseName(workspace());
@@ -355,22 +402,14 @@ export function createSessionStore(deps: SessionDeps) {
         set((state) => ({ loading: state.loading + files.length }));
         for (const file of files) {
           // One at a time: a damaged file reports its own error and never stops the others.
-          const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
-          const kind = classifyFile(head, file.name, file.type);
-          if (kind.kind === 'pdf') adopt(await loadPdf(file));
-          else if (kind.kind === 'image') {
-            set((state) => ({
-              pendingImages: [...state.pendingImages, { id: deps.newId(), file }],
-            }));
-          } else {
-            set((state) => ({
-              rejections: [
-                ...state.rejections,
-                { id: deps.newId(), name: file.name, kind: kind.reason },
-              ],
-            }));
+          try {
+            await addOne(file);
+          } catch {
+            // The browser could not even read it (moved, deleted, no permission).
+            adopt({ id: deps.newId(), name: file.name, kind: 'internal' });
+          } finally {
+            set((state) => ({ loading: state.loading - 1 }));
           }
-          set((state) => ({ loading: state.loading - 1 }));
         }
       },
 
@@ -457,7 +496,7 @@ export function createSessionStore(deps: SessionDeps) {
         );
         const read = await Promise.all(
           missing.map(async (source) => {
-            const result = await deps.renderWorker().outline(source.id);
+            const result = await deps.renderWorker().outline(source.id).catch(failedOutright);
             // A file whose outline cannot be read simply has no bookmarks to cut at.
             return [source.id, result.ok ? result.value : []] as const;
           }),
@@ -467,7 +506,12 @@ export function createSessionStore(deps: SessionDeps) {
 
       async loadEncodableFormats() {
         if (get().encodable !== undefined) return;
-        set({ encodable: await deps.renderWorker().encodableFormats() });
+        // PNG is written by every browser; it is the safe answer if the question itself fails.
+        const formats = await deps
+          .renderWorker()
+          .encodableFormats()
+          .catch((): readonly ImageFormat[] => ['png']);
+        set({ encodable: formats });
       },
 
       async previewSplit(spec) {
@@ -488,17 +532,22 @@ export function createSessionStore(deps: SessionDeps) {
           deps.exportWorker().cancelJob(jobId);
         };
         set({ split: { phase: 'measuring', done: 0, total: pages.length } });
-        const spans = await deps.exportWorker().splitBySize(
-          jobId,
-          pages,
-          spec.limitBytes,
-          proxy((done: number, total: number) => {
-            const current = get().split;
-            if (jobCounter === jobId && current.phase === 'measuring' && done > current.done) {
-              set({ split: { phase: 'measuring', done, total } });
-            }
-          }),
-        );
+        const spans = await deps
+          .exportWorker()
+          .splitBySize(
+            jobId,
+            pages,
+            spec.limitBytes,
+            proxy((done: number, total: number) => {
+              const current = get().split;
+              if (jobCounter === jobId && current.phase === 'measuring' && done > current.done) {
+                set({ split: { phase: 'measuring', done, total } });
+              }
+            }),
+          )
+          .catch((error: unknown) =>
+            err({ kind: 'measureFailed' as const, detail: describeFailure(error) }),
+          );
         cancelActive = undefined;
         if (!spans.ok) {
           set({
@@ -563,7 +612,8 @@ export function createSessionStore(deps: SessionDeps) {
             options,
             stripExtension(baseName()),
             progressTo(jobId),
-          );
+          )
+          .catch(failedOutright);
         finish('images', outcome);
       },
 
@@ -574,7 +624,12 @@ export function createSessionStore(deps: SessionDeps) {
       async saveResult() {
         const state = get().job;
         if (state.phase !== 'ready') return;
-        await deps.save(state.result.bytes, state.result.name, state.result.mime);
+        try {
+          await deps.save(state.result.bytes, state.result.name, state.result.mime);
+        } catch {
+          // The file stays ready, so pressing Save again is all it takes.
+          return;
+        }
         set({ job: { phase: 'idle' } });
       },
 
