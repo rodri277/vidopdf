@@ -4,9 +4,10 @@ import { createPdfLibWriter } from '@vidopdf/pdf-adapters/pdf-lib';
 import { createZipBuilder } from '@vidopdf/pdf-adapters/zip';
 import type { ExportWorkerApi } from './api';
 import { createExportCore } from './export-core';
+import { interFiles } from './fonts';
 
 const core = createExportCore({
-  writer: createPdfLibWriter(),
+  writer: createPdfLibWriter({ fonts: interFiles }),
   compressor: createBrowserCompressor(),
   createZip: createZipBuilder,
 });
@@ -14,6 +15,8 @@ const core = createExportCore({
 const api: ExportWorkerApi = {
   register: core.register,
   release: core.release,
+  releaseAsset: core.releaseAsset,
+  registerAsset: core.registerAsset,
   cancelJob: core.cancelJob,
   splitBySize: core.splitBySize,
 

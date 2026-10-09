@@ -11,7 +11,13 @@ import type {
   SplitError,
   ZipBuilder,
 } from '@vidopdf/core';
-import type { CompressionSummary, PlannedOutput, ProducedFile, SizeSpan } from './api';
+import type {
+  CompressionSummary,
+  PlannedOutput,
+  ProducedFile,
+  SizeSpan,
+  SplitFinishing,
+} from './api';
 
 export interface ExportCoreDeps {
   readonly writer: PdfWriter;
@@ -28,6 +34,7 @@ const ZIP = 'application/zip';
  */
 export function createExportCore(deps: ExportCoreDeps) {
   const sources = new Map<string, Uint8Array>();
+  const assets = new Map<string, Uint8Array>();
   const running = new Map<number, AbortController>();
 
   const track = (jobId: number): AbortController => {
@@ -56,6 +63,14 @@ export function createExportCore(deps: ExportCoreDeps) {
 
   function release(sourceId: string): void {
     sources.delete(sourceId);
+  }
+
+  function registerAsset(assetId: string, bytes: Uint8Array): void {
+    assets.set(assetId, bytes);
+  }
+
+  function releaseAsset(assetId: string): void {
+    assets.delete(assetId);
   }
 
   /**
@@ -153,6 +168,8 @@ export function createExportCore(deps: ExportCoreDeps) {
         const before = finished;
         const built = await deps.writer.assemble(sources, output.pages, {
           signal: controller.signal,
+          assets,
+          ...(output.decorations === undefined ? {} : { decorations: output.decorations }),
           onProgress: (done) => {
             onProgress(before + done, total);
           },
@@ -192,6 +209,7 @@ export function createExportCore(deps: ExportCoreDeps) {
     pages: readonly PageRef[],
     limit: number,
     onProgress: (done: number, total: number) => void,
+    finishing?: SplitFinishing,
   ): Promise<Result<SizeSpan[], SplitError>> {
     const controller = track(jobId);
     try {
@@ -201,9 +219,11 @@ export function createExportCore(deps: ExportCoreDeps) {
         async (group) => {
           const built = await deps.writer.assemble(
             sources,
-            group.map((page) => toExportPage(page)),
+            group.map((page) => toExportPage(page, finishing?.edits[page.id])),
             {
               signal: controller.signal,
+              assets,
+              ...(finishing === undefined ? {} : { decorations: finishing.decorations }),
             },
           );
           if (!built.ok) throw new Error(built.error.kind);
@@ -228,5 +248,14 @@ export function createExportCore(deps: ExportCoreDeps) {
     running.get(jobId)?.abort();
   }
 
-  return { register, registerImage, release, runPlan, splitBySize: splitPagesBySize, cancelJob };
+  return {
+    register,
+    registerImage,
+    release,
+    registerAsset,
+    releaseAsset,
+    runPlan,
+    splitBySize: splitPagesBySize,
+    cancelJob,
+  };
 }

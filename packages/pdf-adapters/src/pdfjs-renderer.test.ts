@@ -1,4 +1,4 @@
-import { PDFDocument } from '@cantoo/pdf-lib';
+import { PDFDocument, degrees } from '@cantoo/pdf-lib';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MAX_CANVAS_PIXELS } from '@vidopdf/core';
 import type { ImageExportOptions, PdfRenderer } from '@vidopdf/core';
@@ -12,10 +12,17 @@ afterEach(async () => {
   await Promise.all(opened.splice(0).map((renderer) => renderer.close()));
 });
 
-async function open(bytes: Uint8Array, encodes?: readonly string[]) {
+async function open(bytes: Uint8Array, encodes?: readonly string[], bitmaps = false) {
+  const canvases = napiCanvas(encodes);
   const renderer = createPdfjsRenderer(nodeAssets, {
     pdfjs: nodePdfjs,
-    createCanvas: napiCanvas(encodes),
+    // Thumbnails are ImageBitmaps, which only a browser makes: a stand-in is enough to see the sizes.
+    createCanvas: bitmaps
+      ? (width, height) => ({
+          ...canvases(width, height),
+          transferToImageBitmap: () => ({ close: () => undefined }) as unknown as ImageBitmap,
+        })
+      : canvases,
     documentOptions: nodeDocumentOptions,
   });
   opened.push(renderer);
@@ -302,5 +309,19 @@ describe('canEncodeImage', () => {
         throw new Error('no canvas');
       }),
     ).toBe(false);
+  });
+});
+
+describe('renderPage reports the size of the page in points', () => {
+  it('as the file shows it, so stamps can be placed with real margins', async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([400, 600]);
+    const sideways = doc.addPage([400, 600]);
+    sideways.setRotation(degrees(90));
+    const { renderer } = await open(await doc.save(), undefined, true);
+    const first = await renderer.renderPage(0, 100);
+    const second = await renderer.renderPage(1, 100);
+    expect(first.ok && [first.value.pointsWidth, first.value.pointsHeight]).toEqual([400, 600]);
+    expect(second.ok && [second.value.pointsWidth, second.value.pointsHeight]).toEqual([600, 400]);
   });
 });

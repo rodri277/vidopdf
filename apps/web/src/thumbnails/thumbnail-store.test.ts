@@ -30,7 +30,14 @@ function fakeRenderer() {
 
 function bitmap() {
   const close = vi.fn();
-  return { image: { close } as unknown as ImageBitmap, close, width: 10, height: 10 };
+  return {
+    image: { close } as unknown as ImageBitmap,
+    close,
+    width: 10,
+    height: 10,
+    pointsWidth: 595,
+    pointsHeight: 842,
+  };
 }
 
 const job = (pageIndex: number): ThumbnailJob => ({

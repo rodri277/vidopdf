@@ -10,9 +10,10 @@ Vidopdf is MIT licensed and ships third-party code and data to every visitor. SP
 
 ## Decision
 
-- `tools/check-licenses.mjs` scans the production dependencies of every workspace and fails the build on any license outside the allowed set (MIT, Apache-2.0, BSD-2/3-Clause, ISC, CC0-1.0, OFL-1.1, 0BSD). It also regenerates `THIRD_PARTY_LICENSES.md`, and CI fails if that file is stale.
+- `tools/check-licenses.mjs` scans the production dependencies of every workspace and fails the build on any license outside the allowed set (MIT, Apache-2.0, BSD-2/3-Clause, ISC, CC0-1.0, OFL-1.1, 0BSD, Zlib). It also regenerates `THIRD_PARTY_LICENSES.md`, and CI fails if that file is stale.
 - The build copies `THIRD_PARTY_LICENSES.md` to the deployed site as `/THIRD_PARTY_LICENSES.txt`, linked from the footer, because what we distribute is the site and not the repository. The in-app Licenses page (SPEC "Cumplimiento legal") comes in Phase 3.
 - Pieces that pdfjs-dist ships under their own licenses (CMaps BSD-3, OpenJPEG BSD-2, JBIG2 BSD-3, qcms MIT, Foxit fonts BSD-3, ICC profiles CC0) are copied to `/pdfjs/` with their LICENSE files next to them and listed in the generated file.
+- **Zlib** (added 2026-10-09, Phase 4): `pako` (a dependency of `@pdf-lib/fontkit`) is `MIT AND Zlib`. The zlib license is permissive and OSI-approved: it asks that the notice is kept, that the origin is not misrepresented and that altered versions are marked as such. Nothing here is altered, and the full text ships in `THIRD_PARTY_LICENSES.md` with the MIT text of the same package. "A AND B" expressions now need every part to be allowed.
 - `quickjs-eval` (pdf.js' sandbox for scripts embedded in PDFs) is deliberately not served: Vidopdf never runs PDF scripts.
 - **Development-only exception:** `@axe-core/playwright` is MPL-2.0 (file-level copyleft). It is used only in tests, is not distributed and is not bundled, so no obligation attaches. The scan covers production dependencies only.
 

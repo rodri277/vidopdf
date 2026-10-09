@@ -5,9 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { unzipSync } from 'fflate';
 import { createCanvas } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
-import type { ExportPage, PageRef } from '@vidopdf/core';
+import { NO_METADATA, presets } from '@vidopdf/core';
+import type { Decorations, ExportPage, PageRef } from '@vidopdf/core';
+import type { SplitFinishing } from './api';
 import { createCompressor } from '@vidopdf/pdf-adapters';
-import { nodeCodec } from '@vidopdf/pdf-adapters/testing';
+import { nodeCodec, nodeFonts } from '@vidopdf/pdf-adapters/testing';
 import { createPdfLibWriter } from '@vidopdf/pdf-adapters/pdf-lib';
 import { createZipBuilder } from '@vidopdf/pdf-adapters/zip';
 import { createExportCore } from './export-core';
@@ -39,7 +41,7 @@ async function setup(
   files: Record<string, string> = { a: 'mixed-sizes-3p.pdf', b: 'rotated-2p.pdf' },
 ) {
   const core = createExportCore({
-    writer: createPdfLibWriter(),
+    writer: createPdfLibWriter({ fonts: nodeFonts }),
     compressor: createCompressor(nodeCodec),
     createZip: () => createZipBuilder(),
   });
@@ -410,5 +412,78 @@ describe('runPlan with compression', () => {
       },
     );
     expect(await running).toMatchObject({ ok: false, error: { kind: 'cancelled' } });
+  });
+});
+
+describe('runPlan with decorations', () => {
+  const decorations: Decorations = {
+    stamps: [presets.pageNumber('n')],
+    fileName: 'out.pdf',
+    date: '2026-10-09',
+    metadata: { ...NO_METADATA, title: 'Stamped' },
+    bookmarks: [{ title: 'Start', pageIndex: 0, children: [] }],
+    forms: {},
+    formMode: 'keep',
+  };
+
+  it('stamps, titles and bookmarks the file the worker builds', async () => {
+    const core = await setup();
+    const result = await core.runPlan(
+      1,
+      [{ name: 'out.pdf', pages: range('a', 3), decorations }],
+      'x.zip',
+      ignore,
+    );
+    if (!result.ok) throw new Error('runPlan failed');
+    const text = Buffer.from(result.value.bytes).toString('latin1');
+    expect(text).toContain('/FontFile2');
+    expect(text).toContain('/Outlines');
+    expect(await pageCount(result.value.bytes)).toBe(3);
+  });
+
+  it('measures splits with the stamps on, so a file never turns out larger than measured', async () => {
+    const core = await setup();
+    const pages = range('a', 3).map((page, index) => ({
+      kind: 'original' as const,
+      id: `p${String(index)}`,
+      sourceId: page.kind === 'original' ? page.sourceId : 'a',
+      sourceIndex: index,
+      rotation: 0 as const,
+    }));
+    const measure = async (finishing?: SplitFinishing) => {
+      const spans = await core.splitBySize(1, pages, 10_000_000, ignore, finishing);
+      if (!spans.ok) throw new Error('measure failed');
+      return spans.value[0]?.size ?? 0;
+    };
+    const plain = await measure();
+    const stamped = await measure({ decorations, edits: {} });
+    // The font of the stamp is part of every file.
+    expect(stamped).toBeGreaterThan(plain + 10_000);
+  });
+
+  it('keeps pictures for stamps until they are released', async () => {
+    const core = await setup();
+    core.registerAsset('logo', new Uint8Array([1, 2, 3]));
+    core.releaseAsset('logo');
+    const stamp = {
+      kind: 'image' as const,
+      id: 'i',
+      assetId: 'logo',
+      anchor: 'center' as const,
+      margin: 0,
+      opacity: 1,
+      rotation: 0,
+      pages: { kind: 'all' as const },
+      skipFirst: false,
+      width: 50,
+      aspect: 1,
+    };
+    const result = await core.runPlan(
+      2,
+      [{ name: 'out.pdf', pages: range('a', 1), decorations: { ...decorations, stamps: [stamp] } }],
+      'x.zip',
+      ignore,
+    );
+    expect(result).toMatchObject({ ok: false, error: { kind: 'unsupported' } });
   });
 });
