@@ -57,7 +57,7 @@ Ports and adapters: a DOM-free `core`, adapters over `pdfjs-dist` and `@cantoo/p
 | Tests                                              |                               | 191 core, 114 adapters, 146 web, 9 architecture rules, 9 benchmark helpers, 85 E2E in each of Chromium and WebKit |
 | Lighthouse (desktop, local build)                  | 95 to 100                     | 100 / 100 / 100 / 100 on the workspace and on a legal page ([benchmarks/LIGHTHOUSE.md](benchmarks/LIGHTHOUSE.md)) |
 | Compression, median saving on photographic PDFs    | 40 % at "balanced"            | 96 % (synthetic corpus, see below)                                                                                |
-| Compress 500 scanned pages (165 MB)                | measured and documented       | 42 % smaller in 19 s, renderer peak 1.8 GB                                                                        |
+| Compress 500 scanned pages (165 MB)                | measured and documented       | 42 % smaller in 18 s, renderer peak 1.8 GB                                                                        |
 
 ## Compression, measured
 

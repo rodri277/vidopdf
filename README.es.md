@@ -57,7 +57,7 @@ Puertos y adaptadores: un `core` sin DOM, adaptadores sobre `pdfjs-dist` y `@can
 | Tests                                                  |                                       | 191 del núcleo, 114 de adaptadores, 146 de la web, 9 reglas de arquitectura, 9 de utilidades de benchmark, 85 E2E en Chromium y otros 85 en WebKit |
 | Lighthouse (escritorio, build local)                   | 95 a 100                              | 100 / 100 / 100 / 100 en el espacio de trabajo y en una página legal ([benchmarks/LIGHTHOUSE.md](benchmarks/LIGHTHOUSE.md))                        |
 | Compresión, reducción mediana en PDFs con fotografías  | 40 % en «equilibrado»                 | 96 % (corpus sintético, ver abajo)                                                                                                                 |
-| Comprimir 500 páginas escaneadas (165 MB)              | medido y documentado                  | un 42 % menos en 19 s, pico del renderizador de 1,8 GB                                                                                             |
+| Comprimir 500 páginas escaneadas (165 MB)              | medido y documentado                  | un 42 % menos en 18 s, pico del renderizador de 1,8 GB                                                                                             |
 
 ## Compresión, medida
 

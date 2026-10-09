@@ -1,6 +1,6 @@
 {
   "name": "@vidopdf/web",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Vidopdf web app: React UI, workers and browser adapters.",

@@ -1,6 +1,6 @@
 {
   "name": "@vidopdf/benchmarks",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Performance and memory benchmarks for Vidopdf, run in a real browser against the production build.",

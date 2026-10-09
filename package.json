@@ -1,6 +1,6 @@
 {
   "name": "vidopdf",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Browser-based PDF workspace: merge, split, reorder, rotate and compress PDFs without uploading them. By vidotho.",
