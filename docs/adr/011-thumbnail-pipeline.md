@@ -14,7 +14,7 @@ A 300-page document must show its first thumbnails in under a second, a 1000-pag
 - **`planRenders`** (in `core`, pure) decides what to cancel and what to start from four inputs: what is wanted now (most urgent first), what is running, what is cached and the concurrency limit (three). It is tested with properties: never over the limit, never starts what is cached or running.
 - **`ThumbnailStore`** (web) runs that plan. It fills an LRU cache of 160 thumbnails (320 px wide, about 85 MB at most) that **closes each `ImageBitmap` it evicts**, so GPU memory is released. Components read one thumbnail each through `useSyncExternalStore`, keyed by `renderKey`, so a finished page repaints only itself. A page that fails is not retried in a loop; a late answer for a cancelled request is dropped and its bitmap closed.
 - **What is wanted** is the visible rows plus two rows each side, ordered from the middle of the screen outward, recomputed on every scroll.
-- **The export worker owns the source bytes** (registered once, validated on arrival); the render worker has its own copy that pdf.js owns. The main thread keeps no bytes after loading, so each file exists twice in memory, not three times. To be measured with 500 pages in Phase 2.
+- **The export worker owns the source bytes** (registered once, validated on arrival); the render worker has its own copy that pdf.js owns. The main thread keeps no bytes after loading, so each file exists twice in memory, not three times. Measured in Phase 2 with 500 pages: see [ADR 015](015-benchmarks-and-memory.md). Loading now moves a freshly read copy of the file to each worker and lets pdf.js take it without another copy, which cut the memory peak of loading a 97 MB scan from 876 MB to 682 MB.
 
 ## Measured
 

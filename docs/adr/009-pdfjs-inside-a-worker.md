@@ -18,6 +18,8 @@ The renderer (`packages/pdf-adapters/src/pdfjs-renderer.ts`) is created inside `
 
 pdf.js logs "Setting up fake worker": inside our worker it runs its own worker code on the same thread instead of spawning a nested one. That is acceptable, because the work is already off the main thread, and it is covered by the E2E tests in Chromium and WebKit. Whether a nested worker is worth it (parsing and rendering in parallel) is a Phase 1/2 measurement.
 
+**Found later, in Phase 2 (a bug, not a design choice).** `useWorkerFetch` and `disableFontFace` were not the whole story: pdf.js also builds scratch canvases and SVG filters through `CanvasFactory` and `FilterFactory`, which default to the DOM. A page that needs a scratch canvas (a picture much larger than its target, such as a 150 dpi scan drawn as a thumbnail) failed with "Cannot read properties of undefined (reading 'createElement')", and the thumbnail stayed an empty skeleton without any message. Small test files never triggered it, so it was found by the 500-page scanned benchmark. The fix is `worker-factories.ts` (an OffscreenCanvas factory and a "no filter" factory) passed from the browser entry, with a regression E2E test using a 1240 x 1754 scan that fails without it.
+
 All pdf.js data (`cmaps/`, `standard_fonts/`, `iccs/`, `wasm/`, `pdf.worker.min.mjs`) is served from `/pdfjs/` on our own origin, so the CSP can stay at `default-src 'self'`. `'wasm-unsafe-eval'` is in `script-src` because pdf.js decodes JPEG 2000 and JBIG2 with WASM.
 
 ## Alternatives considered
