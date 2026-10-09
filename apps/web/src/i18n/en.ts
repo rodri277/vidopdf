@@ -195,7 +195,8 @@ export const en: Widen<typeof es> = {
     cancel: 'Cancel',
   },
   memory: {
-    warning: '{{size}} loaded. With this much content the browser may slow down.',
+    warning:
+      '{{size}} of PDFs loaded. With this much content the browser may slow down or run out of memory: export in parts or remove a file.',
   },
   files: {
     heading: 'Files',
