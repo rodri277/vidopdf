@@ -1,6 +1,8 @@
 const { join } = require('node:path');
 
 const PDF_LIBS = '(^|node_modules/)(pdfjs-dist|@cantoo/pdf-lib|pdf-lib)(/|$)';
+/** What adapters may use besides the PDF engines: the ZIP library. */
+const ADAPTER_LIBS = '(^|node_modules/)fflate(/|$)';
 
 /** Layer rules from SPEC.md "Arquitectura". Enforced in CI via `pnpm deps:check`. */
 module.exports = {
@@ -15,7 +17,8 @@ module.exports = {
     },
     {
       name: 'adapters-only-import-core-and-pdf-libs',
-      comment: 'pdf-adapters may depend on core and the PDF engines, never on the web app.',
+      comment:
+        'pdf-adapters may depend on core, the PDF engines and the ZIP library, never on the web app.',
       severity: 'error',
       from: { path: '^packages/pdf-adapters/src' },
       to: {
@@ -23,6 +26,7 @@ module.exports = {
           '^packages/pdf-adapters/src',
           '^packages/core/src',
           PDF_LIBS,
+          ADAPTER_LIBS,
           '^@vidopdf/core(/|$)',
         ],
         dependencyTypesNot: ['core'],

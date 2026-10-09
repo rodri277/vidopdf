@@ -22,3 +22,7 @@ export type {
   OrientationChoice,
   PaperChoice,
 } from './layout';
+export { detectImageKind, isSupportedImage } from './detect';
+export type { ImageKind } from './detect';
+export { jpegOrientation, orientationMatrix, swapsAxes } from './orientation';
+export type { ExifOrientation, Matrix } from './orientation';

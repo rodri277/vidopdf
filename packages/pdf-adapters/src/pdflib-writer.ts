@@ -1,6 +1,7 @@
 import { PDFDocument, degrees } from '@cantoo/pdf-lib';
 import { err, ok, pdfError } from '@vidopdf/core';
 import type { ExportPage, PdfError, PdfInfo, PdfWriter, Result, WriteOptions } from '@vidopdf/core';
+import { imageToPdf } from './image-to-pdf';
 
 const YIELD_EVERY = 8;
 
@@ -29,6 +30,12 @@ async function inspect(bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>> {
   return loaded.ok ? ok({ pageCount: loaded.value.getPageCount() }) : loaded;
 }
 
+/**
+ * Parsed source documents, kept for as long as their bytes are. Measuring a split by size builds
+ * the same pages again and again; parsing each source once makes that affordable.
+ */
+const parsed = new WeakMap<Uint8Array, PDFDocument>();
+
 async function loadSources(
   sources: ReadonlyMap<string, Uint8Array>,
   needed: ReadonlySet<string>,
@@ -37,8 +44,14 @@ async function loadSources(
   for (const sourceId of needed) {
     const bytes = sources.get(sourceId);
     if (bytes === undefined) return err(pdfError('internal', `unknown source ${sourceId}`));
+    const cached = parsed.get(bytes);
+    if (cached !== undefined) {
+      docs.set(sourceId, cached);
+      continue;
+    }
     const loaded = await load(bytes);
     if (!loaded.ok) return loaded;
+    parsed.set(bytes, loaded.value);
     docs.set(sourceId, loaded.value);
   }
   return ok(docs);
@@ -87,5 +100,5 @@ async function assemble(
 }
 
 export function createPdfLibWriter(): PdfWriter {
-  return { inspect, assemble };
+  return { inspect, assemble, fromImage: imageToPdf };
 }

@@ -1,5 +1,7 @@
 import type { PdfError } from '../errors';
 import type { Result } from '../result';
+import type { ImageExportOptions } from '../images/export';
+import type { ImagePageOptions } from '../images/layout';
 import type { ExportPage } from '../workspace/page-ref';
 
 export interface PdfInfo {
@@ -12,6 +14,25 @@ export interface RenderedPage<Image> {
   readonly image: Image;
 }
 
+/** One bookmark of a PDF, resolved to the page it points at. */
+export interface OutlineEntry {
+  readonly title: string;
+  /** Zero-based index of the target page in its file. */
+  readonly pageIndex: number;
+  /** 1 for top-level bookmarks. */
+  readonly level: number;
+}
+
+/** A page drawn and encoded as an image file. */
+export interface EncodedImage {
+  readonly bytes: Uint8Array;
+  readonly width: number;
+  readonly height: number;
+  /** The resolution really used, lower than asked when the page was too large for the canvas budget. */
+  readonly dpi: number;
+  readonly capped: boolean;
+}
+
 /** Draws pages for thumbnails and previews. `Image` is whatever the platform paints (an ImageBitmap). */
 export interface PdfRenderer<Image> {
   open(bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>>;
@@ -20,6 +41,14 @@ export interface PdfRenderer<Image> {
     targetWidth: number,
     signal?: AbortSignal,
   ): Promise<Result<RenderedPage<Image>, PdfError>>;
+  /** The bookmarks of the open document, flattened with their level. Entries that point nowhere are left out. */
+  outline(): Promise<Result<OutlineEntry[], PdfError>>;
+  /** Draws a page at a print resolution and encodes it (PNG, JPEG or WebP). */
+  renderImage(
+    pageIndex: number,
+    options: ImageExportOptions,
+    signal?: AbortSignal,
+  ): Promise<Result<EncodedImage, PdfError>>;
   close(): Promise<void>;
 }
 
@@ -32,11 +61,24 @@ export interface WriteOptions {
 /** Builds the output PDF from page references. The source PDFs are never modified. */
 export interface PdfWriter {
   inspect(bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>>;
+  /** A one-page PDF holding a JPEG or PNG, laid out as the options say and turned upright by its EXIF data. */
+  fromImage(bytes: Uint8Array, options: ImagePageOptions): Promise<Result<Uint8Array, PdfError>>;
   assemble(
     sources: ReadonlyMap<string, Uint8Array>,
     pages: readonly ExportPage[],
     options?: WriteOptions,
   ): Promise<Result<Uint8Array, PdfError>>;
+}
+
+export interface ZipOptions {
+  /** Deflate the entry. PDFs gain from it; PNG, JPEG and WebP are already compressed, so store them. */
+  readonly deflate?: boolean;
+}
+
+/** Builds a ZIP file entry by entry, so each page can be added as soon as it is ready. */
+export interface ZipBuilder {
+  add(name: string, bytes: Uint8Array, options?: ZipOptions): Result<void, PdfError>;
+  finish(): Result<Uint8Array, PdfError>;
 }
 
 export type CompressionPreset = 'screen' | 'balanced' | 'print';
