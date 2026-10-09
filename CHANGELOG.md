@@ -2,19 +2,21 @@
 
 Generated from commit messages by `node tools/changelog.mjs`.
 
+## v1.0.1 (2026-10-09)
+
+### Fixes
+
+- audit fixes (robustness, compression correctness, Firefox in CI) (#17)
+
 ## v1.0.0 (2026-10-09)
 
 ### Features
 
+- Lighthouse in CI, final readmes and release 1.0.0 (#16)
 - compression, legal pages and privacy statement (phase 3) (#15)
-
-### CI
-
-- run Lighthouse on the built site with a floor of 95
 
 ### Documentation
 
-- final readmes with measured numbers, demo gif and the phase 3 account
 - link the live demo (#14)
 - changelog for v0.3.0 (#13)
 
