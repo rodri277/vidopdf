@@ -103,7 +103,8 @@ function render() {
     if (!row.file) continue;
     let text = '';
     try {
-      text = readFileSync(row.file, 'utf8').trim();
+      // Normalize line endings so the file is identical on every machine and in CI.
+      text = readFileSync(row.file, 'utf8').replace(/\r\n?/g, '\n').trim();
     } catch {
       continue;
     }
