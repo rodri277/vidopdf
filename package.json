@@ -1,6 +1,6 @@
 {
   "name": "vidopdf",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Browser-based PDF workspace: merge, split, reorder, rotate and compress PDFs without uploading them. By vidotho.",
@@ -23,12 +23,14 @@
     "licenses:check": "node tools/check-licenses.mjs",
     "size": "pnpm --filter @vidopdf/web size",
     "prepare": "husky",
-    "bench": "pnpm --filter @vidopdf/benchmarks bench"
+    "bench": "pnpm --filter @vidopdf/benchmarks bench",
+    "lighthouse": "node tools/lighthouse.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@eslint/js": "9.39.5",
+    "chrome-launcher": "^1.2.2",
     "dependency-cruiser": "^18.5.0",
     "eslint": "9.39.5",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -36,6 +38,7 @@
     "globals": "^17.13.0",
     "husky": "^9.1.7",
     "license-checker-rseidelsohn": "^5.0.1",
+    "lighthouse": "^13.5.0",
     "lint-staged": "^17.6.0",
     "prettier": "^3.9.9",
     "typescript": "6.0.3",

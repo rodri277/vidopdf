@@ -2,6 +2,22 @@
 
 Generated from commit messages by `node tools/changelog.mjs`.
 
+## v1.0.0 (2026-10-09)
+
+### Features
+
+- compression, legal pages and privacy statement (phase 3) (#15)
+
+### CI
+
+- run Lighthouse on the built site with a floor of 95
+
+### Documentation
+
+- final readmes with measured numbers, demo gif and the phase 3 account
+- link the live demo (#14)
+- changelog for v0.3.0 (#13)
+
 ## v0.3.0 (2026-10-09)
 
 ### Features
