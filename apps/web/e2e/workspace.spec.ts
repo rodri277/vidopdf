@@ -7,8 +7,8 @@ test('merges the pages of several files into one valid PDF', async ({ page }) =>
     .getByTestId('file-input')
     .setInputFiles([fixture('mixed-sizes-3p.pdf'), fixture('rotated-2p.pdf')]);
   await expect(pageCards(page)).toHaveCount(5);
-  await expect(page.getByText('3 páginas')).toBeVisible();
-  await expect(page.getByText('2 páginas')).toBeVisible();
+  await expect(page.locator('.file-meta', { hasText: '3 páginas' })).toBeVisible();
+  await expect(page.locator('.file-meta', { hasText: '2 páginas' })).toBeVisible();
 
   const bytes = await exportPdf(page);
   expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
