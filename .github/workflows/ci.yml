@@ -64,13 +64,16 @@ jobs:
         run: pnpm size
 
       - name: Install Playwright browsers
-        run: pnpm --filter @vidopdf/web exec playwright install --with-deps chromium webkit
+        run: pnpm --filter @vidopdf/web exec playwright install --with-deps chromium webkit firefox
 
       - name: E2E, accessibility and privacy (Chromium)
         run: pnpm e2e
 
       - name: E2E, accessibility and privacy (WebKit)
         run: pnpm e2e:webkit
+
+      - name: E2E, accessibility and privacy (Firefox)
+        run: pnpm e2e:firefox
 
       - name: Lighthouse (floor 95 in every category, on the built site)
         run: pnpm lighthouse

@@ -24,7 +24,8 @@
     "size": "pnpm --filter @vidopdf/web size",
     "prepare": "husky",
     "bench": "pnpm --filter @vidopdf/benchmarks bench",
-    "lighthouse": "node tools/lighthouse.mjs"
+    "lighthouse": "node tools/lighthouse.mjs",
+    "e2e:firefox": "pnpm --filter @vidopdf/web e2e:firefox"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
