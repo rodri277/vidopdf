@@ -24,13 +24,16 @@ pnpm e2e:webkit       # same on WebKit; `pnpm --filter @vidopdf/web exec playwri
 
 `qpdf` must be installed locally (`brew install qpdf`): adapter tests run `qpdf --check` on every PDF we produce. It is a test tool only.
 
-Before closing any task: lint, typecheck, test, and e2e if the UI changed. All green.
+Before closing any task: lint, typecheck, test, and e2e if the UI changed. All green. `pnpm e2e` reuses a server already on port 4173 and would test a stale build: kill it first (`lsof -ti:4173 | xargs kill`).
+
+`main` is protected: work on a branch, open a PR, wait for the `verify` check, squash-merge. Tags `vX.Y.0` mark the end of each phase; `node tools/changelog.mjs` rebuilds `CHANGELOG.md`.
 
 ## Architecture (ADR 001, 003)
 
 - `packages/core`: pure TypeScript, no DOM, no React, no PDF libraries. Domain, commands, history, ports. Results are `Result<T, PdfError>` values, never thrown across a worker boundary.
 - `packages/pdf-adapters`: implements the ports with `pdfjs-dist` and `@cantoo/pdf-lib`. One entry point per engine (`/pdfjs`, `/pdf-lib`).
-- `apps/web`: React UI, Zustand for UI state only, i18next (Spanish default, English), and `src/workers/` (the only place that may import `pdf-adapters`).
+- `apps/web`: React UI, i18next (Spanish default, English), and `src/workers/` (the only place that may import `pdf-adapters`). `state/session-store.ts` wires core commands and history to the UI; `thumbnails/` is the render queue and cache; `ui/grid-layout.ts` and `ui/keys.ts` are pure and tested.
+- Every user action goes through `ui/actions.ts`, which also announces it to screen readers. Add new ones there, with a command, an inverse and a property test in `core` (ADR 010).
 - The original PDFs are never modified. The workspace is a plan of page references; the output PDF is built at export time.
 - Rules are enforced by `.dependency-cruiser.cjs` and proven by `tools/check-boundaries.test.mjs`.
 
