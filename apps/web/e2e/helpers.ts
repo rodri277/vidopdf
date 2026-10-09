@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createCanvas } from '@napi-rs/canvas';
 import { expect } from '@playwright/test';
+import { unzipSync } from 'fflate';
 import type { Locator, Page } from '@playwright/test';
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../../../tests/fixtures/generated');
@@ -46,19 +48,34 @@ export async function expectThumbnail(page: Page, index: number): Promise<void> 
   await expect(pageCards(page).nth(index).locator('canvas')).toBeVisible();
 }
 
-/** Exports and returns the downloaded bytes. */
-export async function exportPdf(page: Page): Promise<Buffer> {
+/** Opens the export dialog from the top bar. */
+export async function openExportDialog(page: Page): Promise<Locator> {
   await page
-    .getByRole('button', { name: /Exportar|Export$/ })
-    .first()
+    .getByRole('banner')
+    .getByRole('button', { name: /^(Exportar|Export)$/ })
     .click();
-  const save = page.getByRole('button', { name: /^(Guardar PDF|Save PDF)$/ });
+  const dialog = page.getByRole('dialog', { name: /^(Exportar|Export)$/ });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+/** Saves what the dialog finished building and returns the downloaded file. */
+export async function saveResult(page: Page): Promise<{ name: string; bytes: Buffer }> {
+  const dialog = page.getByRole('dialog', { name: /^(Exportar|Export)$/ });
+  const save = dialog.getByRole('button', { name: /^(Guardar|Save)$/ });
   await expect(save).toBeVisible();
   const download = page.waitForEvent('download');
   await save.click();
-  const path = await (await download).path();
+  const file = await download;
   const { readFile } = await import('node:fs/promises');
-  return readFile(path);
+  return { name: file.suggestedFilename(), bytes: await readFile(await file.path()) };
+}
+
+/** Exports everything as one PDF and returns the downloaded bytes. */
+export async function exportPdf(page: Page): Promise<Buffer> {
+  const dialog = await openExportDialog(page);
+  await dialog.getByRole('button', { name: /^(Exportar PDF|Export PDF)$/ }).click();
+  return (await saveResult(page)).bytes;
 }
 
 /** The pages in document order, as `file#pageNumber` (or `blank`). */
@@ -87,4 +104,88 @@ export async function clickCard(
   modifiers: ('Shift' | 'ControlOrMeta')[] = [],
 ): Promise<void> {
   await pageCards(page).nth(index).click({ modifiers });
+}
+
+/** Page count of a PDF written by Vidopdf (a single page tree: the first /Count is the total). */
+export function pdfPageCount(bytes: Uint8Array): number {
+  const match = /\/Count (\d+)/.exec(Buffer.from(bytes).toString('latin1'));
+  return match === null ? -1 : Number(match[1]);
+}
+
+/** Width and height of a PNG, from its header. */
+export function pngSize(bytes: Uint8Array): { width: number; height: number } {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return { width: view.getUint32(16), height: view.getUint32(20) };
+}
+
+export function unzipFiles(bytes: Uint8Array): Record<string, Uint8Array> {
+  return unzipSync(bytes);
+}
+
+export function startsWith(bytes: Uint8Array, signature: readonly number[]): boolean {
+  return signature.every((value, index) => bytes[index] === value);
+}
+
+export const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47] as const;
+export const JPEG_SIGNATURE = [0xff, 0xd8, 0xff] as const;
+
+/** A picture with a visible gradient, as the bytes a file input needs. */
+export function pictureFile(
+  name: string,
+  format: 'png' | 'jpeg' | 'webp',
+  width = 400,
+  height = 300,
+  orientation?: number,
+): { name: string; mimeType: string; buffer: Buffer } {
+  const canvas = createCanvas(width, height);
+  const context = canvas.getContext('2d');
+  const gradient = context.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, '#1d4ed8');
+  gradient.addColorStop(1, '#f59e0b');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+  const mimeType = `image/${format}`;
+  const encoded: Uint8Array = new Uint8Array(canvas.toBuffer(mimeType as 'image/png'));
+  const bytes = orientation === undefined ? encoded : withExifOrientation(encoded, orientation);
+  return { name, mimeType, buffer: Buffer.from(bytes) };
+}
+
+/** Inserts an EXIF segment recording `orientation` right after the JPEG start marker. */
+function withExifOrientation(jpeg: Uint8Array, orientation: number): Uint8Array {
+  const tiff = new DataView(new ArrayBuffer(26));
+  tiff.setUint16(0, 0x4d4d);
+  tiff.setUint16(2, 42);
+  tiff.setUint32(4, 8);
+  tiff.setUint16(8, 1);
+  tiff.setUint16(10, 0x0112);
+  tiff.setUint16(12, 3);
+  tiff.setUint32(14, 1);
+  tiff.setUint16(18, orientation);
+  const payload = [0x45, 0x78, 0x69, 0x66, 0, 0, ...new Uint8Array(tiff.buffer)];
+  const length = payload.length + 2;
+  return new Uint8Array([
+    0xff,
+    0xd8,
+    0xff,
+    0xe1,
+    length >> 8,
+    length & 0xff,
+    ...payload,
+    ...jpeg.slice(2),
+  ]);
+}
+
+/** Width and height of the first page of a one-page PDF (its MediaBox). */
+export function mediaBox(bytes: Uint8Array): { width: number; height: number } {
+  const match = /MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)/.exec(
+    Buffer.from(bytes).toString('latin1'),
+  );
+  return { width: Number(match?.[1]), height: Number(match?.[2]) };
+}
+
+/** Loads the five-page workspace and opens the export dialog on the given tab. */
+export async function openExportTab(page: Page, tab: RegExp | string): Promise<Locator> {
+  const dialog = await openExportDialog(page);
+  await dialog.getByRole('radio', { name: tab }).check();
+  return dialog;
 }

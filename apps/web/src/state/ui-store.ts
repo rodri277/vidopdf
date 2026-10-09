@@ -1,4 +1,8 @@
 import { create } from 'zustand';
+import { DEFAULT_DPI, DEFAULT_QUALITY } from '@vidopdf/core';
+import type { ImageFormat } from '@vidopdf/core';
+import { defaultSplitDraft } from './split';
+import type { SplitDraft } from './split';
 
 const SIZE_KEY = 'vidopdf.thumbnailSize';
 export const THUMB_MIN = 120;
@@ -18,7 +22,27 @@ function initialSize(): number {
   }
 }
 
+export type ExportMode = 'pdf' | 'split' | 'images';
+
+/** What the picture form holds. */
+export interface ImageDraft {
+  readonly format: ImageFormat;
+  readonly dpi: number;
+  readonly quality: number;
+  readonly scope: 'all' | 'selection';
+}
+
 interface UiState {
+  /** The export dialog, with its form. A running job keeps the dialog open on its own. */
+  exportOpen: boolean;
+  exportMode: ExportMode;
+  splitDraft: SplitDraft;
+  imageDraft: ImageDraft;
+  openExport: (mode?: ExportMode, split?: SplitDraft) => void;
+  closeExport: () => void;
+  setExportMode: (mode: ExportMode) => void;
+  patchSplit: (changes: Partial<SplitDraft>) => void;
+  patchImages: (changes: Partial<ImageDraft>) => void;
   /** The page the keyboard is on (not necessarily selected). */
   activeId: string | null;
   thumbSize: number;
@@ -33,6 +57,29 @@ interface UiState {
 }
 
 export const useUi = create<UiState>((set) => ({
+  exportOpen: false,
+  exportMode: 'pdf',
+  splitDraft: defaultSplitDraft,
+  imageDraft: { format: 'png', dpi: DEFAULT_DPI, quality: DEFAULT_QUALITY, scope: 'all' },
+  openExport: (mode, split) => {
+    set((state) => ({
+      exportOpen: true,
+      exportMode: mode ?? state.exportMode,
+      splitDraft: split ?? state.splitDraft,
+    }));
+  },
+  closeExport: () => {
+    set({ exportOpen: false });
+  },
+  setExportMode: (exportMode) => {
+    set({ exportMode });
+  },
+  patchSplit: (changes) => {
+    set((state) => ({ splitDraft: { ...state.splitDraft, ...changes } }));
+  },
+  patchImages: (changes) => {
+    set((state) => ({ imageDraft: { ...state.imageDraft, ...changes } }));
+  },
   activeId: null,
   thumbSize: initialSize(),
   announcement: '',

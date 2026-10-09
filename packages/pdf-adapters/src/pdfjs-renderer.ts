@@ -74,7 +74,10 @@ export async function canEncodeImage(
   createCanvas: (width: number, height: number) => RenderCanvas = defaultCanvas,
 ): Promise<boolean> {
   try {
-    const blob = await createCanvas(1, 1).convertToBlob({ type: imageMime(format) });
+    const canvas = createCanvas(1, 1);
+    // A canvas that never had a context refuses to encode (InvalidStateError in browsers).
+    canvas.getContext('2d');
+    const blob = await canvas.convertToBlob({ type: imageMime(format) });
     return blob.type === imageMime(format);
   } catch {
     return false;

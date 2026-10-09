@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { clickCard, loadFive, order, pageCards } from './helpers';
+import { clickCard, loadFive, openExportDialog, order, pageCards, saveResult } from './helpers';
 
 const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -81,25 +81,39 @@ test.describe('export dialog', () => {
     await clickCard(page, 0);
     await page.keyboard.press('Alt+End');
 
-    await page.getByRole('button', { name: 'Exportar' }).first().click();
-    const dialog = page.getByRole('dialog', { name: 'Exportar PDF' });
+    const dialog = await openExportDialog(page);
+    expect((await new AxeBuilder({ page }).withTags(tags).analyze()).violations).toEqual([]);
+    await dialog.getByRole('button', { name: 'Exportar PDF' }).click();
     await expect(dialog).toContainText(/Listo: 5 páginas, .* KB/);
     expect((await new AxeBuilder({ page }).withTags(tags).analyze()).violations).toEqual([]);
 
-    const download = page.waitForEvent('download');
-    await dialog.getByRole('button', { name: 'Guardar PDF' }).click();
-    expect((await download).suggestedFilename()).toBe('vidopdf.pdf');
-    await expect(dialog).toBeHidden();
+    const saved = await saveResult(page);
+    expect(saved.name).toBe('vidopdf.pdf');
+    await expect(dialog.getByRole('button', { name: 'Exportar PDF' })).toBeVisible(); // back to the options
   });
 
-  test('can be dismissed without saving anything', async ({ page }) => {
+  test('can be closed without exporting anything, with the keyboard', async ({ page }) => {
     await loadFive(page);
     await page.keyboard.press('ControlOrMeta+e');
-    const dialog = page.getByRole('dialog', { name: 'Exportar PDF' });
-    await expect(dialog).toContainText('Listo');
+    const dialog = page.getByRole('dialog', { name: 'Exportar' });
+    await expect(dialog).toContainText('Se exportará un PDF de 5 páginas');
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(pageCards(page)).toHaveCount(5);
+  });
+
+  test('gives the focus back to the button that opened it, when opened with the keyboard', async ({
+    page,
+  }) => {
+    await loadFive(page);
+    // Safari does not focus a button when it is clicked, so this is the case that matters: the keyboard.
+    const button = page.getByRole('banner').getByRole('button', { name: 'Exportar' });
+    await button.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'Exportar' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Exportar' })).toBeHidden();
+    await expect(button).toBeFocused();
   });
 });
 

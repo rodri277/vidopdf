@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 
 interface ModalProps {
@@ -22,6 +22,14 @@ export function Modal({ open, labelledBy, onClose, onKey, className, children }:
     if (open && !element.open) element.showModal();
     if (!open && element.open) element.close();
   }, [open]);
+
+  // A dialog taken out of the page while open never gives the focus back; closing it first does.
+  useLayoutEffect(() => {
+    const element = dialog.current;
+    return () => {
+      if (element?.open === true) element.close();
+    };
+  }, []);
 
   useEffect(() => {
     const element = dialog.current;

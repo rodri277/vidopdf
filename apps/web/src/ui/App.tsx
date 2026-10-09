@@ -2,7 +2,6 @@ import { Suspense, lazy, useCallback, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { useSession } from '../state/session';
 import { ContextPanel } from './ContextPanel';
-import { ExportDialog } from './ExportDialog';
 import { FilesPanel } from './FilesPanel';
 import { Footer } from './Footer';
 import { Stage } from './Stage';
@@ -12,6 +11,12 @@ import { TopBar } from './TopBar';
 import './app.css';
 
 // The preview is only needed once a page is opened, so it stays out of the first download.
+const ExportDialog = lazy(() =>
+  import('./export/ExportDialog').then((m) => ({ default: m.ExportDialog })),
+);
+const ImageImportDialog = lazy(() =>
+  import('./ImageImportDialog').then((m) => ({ default: m.ImageImportDialog })),
+);
 const PreviewDialog = lazy(() =>
   import('./PreviewDialog').then((m) => ({ default: m.PreviewDialog })),
 );
@@ -26,6 +31,10 @@ export function App() {
   useShortcuts(openPicker);
   const announcement = useUi((state) => state.announcement);
   const previewOpen = useUi((state) => state.previewId !== null);
+  const exportRequested = useUi((state) => state.exportOpen);
+  const jobActive = useSession((state) => state.job.phase !== 'idle');
+  const exportOpen = exportRequested || jobActive;
+  const importOpen = useSession((state) => state.pendingImages.length > 0);
   const onFiles = useCallback(
     (files: File[]) => {
       void addFiles(files);
@@ -46,7 +55,10 @@ export function App() {
         <ContextPanel />
       </div>
       <Footer />
-      <ExportDialog />
+      <Suspense fallback={null}>
+        {exportOpen && <ExportDialog />}
+        {importOpen && <ImageImportDialog />}
+      </Suspense>
       {previewOpen && (
         <Suspense fallback={null}>
           <PreviewDialog />
@@ -58,7 +70,7 @@ export function App() {
       <input
         ref={input}
         type="file"
-        accept=".pdf,application/pdf"
+        accept=".pdf,application/pdf,image/jpeg,image/png,.jpg,.jpeg,.png"
         multiple
         hidden
         data-testid="file-input"
