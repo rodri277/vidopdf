@@ -8,6 +8,7 @@ import { Footer } from './Footer';
 import { Stage } from './Stage';
 import { useUi } from '../state/ui-store';
 import { useShortcuts } from './useShortcuts';
+import { useWindowGuards } from './useWindowGuards';
 import { TopBar } from './TopBar';
 import './app.css';
 
@@ -45,6 +46,7 @@ export function App() {
     },
     [addFiles],
   );
+  useWindowGuards(onFiles);
   const onPicked = (event: ChangeEvent<HTMLInputElement>) => {
     onFiles([...(event.target.files ?? [])]);
     event.target.value = '';
