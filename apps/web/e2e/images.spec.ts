@@ -127,15 +127,20 @@ test.describe('JPEG and WebP', () => {
     expect(startsWith(saved.bytes, JPEG_SIGNATURE)).toBe(true);
   });
 
-  test('WebP works where the browser can write it, and is switched off, saying why, where it cannot', async ({
+  test('WebP is offered exactly when this browser can write it, and says why when it cannot', async ({
     page,
-    browserName,
   }) => {
     await loadFive(page);
     await clickCard(page, 0);
+    // Safari on macOS cannot encode WebP; Chromium and WebKit on Linux can. Ask the browser itself.
+    const canWrite = await page.evaluate(async () => {
+      const canvas = new OffscreenCanvas(1, 1);
+      canvas.getContext('2d');
+      return (await canvas.convertToBlob({ type: 'image/webp' })).type === 'image/webp';
+    });
     const dialog = await imagesTab(page);
     const webp = dialog.getByRole('radio', { name: 'WebP' });
-    if (browserName === 'chromium') {
+    if (canWrite) {
       await expect(webp).toBeEnabled();
       await webp.check();
       await dialog.getByRole('radio', { name: /Solo las seleccionadas/ }).check();
