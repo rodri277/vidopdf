@@ -3,7 +3,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PDFDocument, StandardFonts, degrees, rgb } from '@cantoo/pdf-lib';
+import { createCanvas } from '@napi-rs/canvas';
+import { PDFDocument, PDFName, PDFString, StandardFonts, degrees, rgb } from '@cantoo/pdf-lib';
 
 const outDir = join(dirname(fileURLToPath(import.meta.url)), '../../../tests/fixtures/generated');
 mkdirSync(outDir, { recursive: true });
@@ -74,6 +75,148 @@ const user = await newDoc('Fixture user-password');
 await addPage(user, 'USER-1', A4);
 user.encrypt({ ownerPassword: 'fixture-owner', userPassword: 'fixture-user' });
 await write('encrypted-user-password.pdf', user);
+
+// --- Features that pdf-lib's copyPages is known to lose or keep: see merge-limits.test.ts. ---
+
+const bookmarks = await newDoc('Fixture bookmarks');
+for (const label of ['BM-1', 'BM-2', 'BM-3']) await addPage(bookmarks, label, A4);
+{
+  const ctx = bookmarks.context;
+  const pages = bookmarks.getPages();
+  const root = ctx.nextRef();
+  const refs = pages.map(() => ctx.nextRef());
+  pages.forEach((page, i) => {
+    const dict = ctx.obj({
+      Title: PDFString.of(`Chapter ${String(i + 1)}`),
+      Parent: root,
+      Dest: [page.ref, PDFName.of('Fit')],
+      ...(i > 0 ? { Prev: refs[i - 1] } : {}),
+      ...(i < pages.length - 1 ? { Next: refs[i + 1] } : {}),
+    });
+    ctx.assign(refs[i], dict);
+  });
+  ctx.assign(
+    root,
+    ctx.obj({ Type: 'Outlines', First: refs[0], Last: refs.at(-1), Count: pages.length }),
+  );
+  bookmarks.catalog.set(PDFName.of('Outlines'), root);
+}
+await write('bookmarks-3p.pdf', bookmarks);
+
+const form = await newDoc('Fixture form');
+await addPage(form, 'FORM-1', A4);
+{
+  const f = form.getForm();
+  const text = f.createTextField('full_name');
+  text.setText('Ada Lovelace');
+  text.addToPage(form.getPage(0), { x: 40, y: 600, width: 200, height: 24 });
+  const check = f.createCheckBox('accept');
+  check.check();
+  check.addToPage(form.getPage(0), { x: 40, y: 560, width: 18, height: 18 });
+}
+await write('form-1p.pdf', form);
+
+const tagged = await newDoc('Fixture tagged');
+await addPage(tagged, 'TAG-1', A4);
+await addPage(tagged, 'TAG-2', A4);
+tagged.catalog.set(PDFName.of('MarkInfo'), tagged.context.obj({ Marked: true }));
+tagged.catalog.set(PDFName.of('Lang'), PDFString.of('en-US'));
+tagged.catalog.set(
+  PDFName.of('StructTreeRoot'),
+  tagged.context.obj({ Type: 'StructTreeRoot', K: [] }),
+);
+await write('tagged-2p.pdf', tagged);
+
+const links = await newDoc('Fixture links');
+await addPage(links, 'LINK-1', A4);
+{
+  const ctx = links.context;
+  const annot = ctx.register(
+    ctx.obj({
+      Type: 'Annot',
+      Subtype: 'Link',
+      Rect: [40, 380, 300, 440],
+      Border: [0, 0, 0],
+      A: { Type: 'Action', S: 'URI', URI: PDFString.of('https://example.org/') },
+    }),
+  );
+  links.getPage(0).node.set(PDFName.of('Annots'), ctx.obj([annot]));
+}
+await write('links-1p.pdf', links);
+
+function image(width, height, draw) {
+  const canvas = createCanvas(width, height);
+  draw(canvas.getContext('2d'), width, height);
+  return canvas;
+}
+
+const gradient = (ctx, w, h) => {
+  const g = ctx.createLinearGradient(0, 0, w, h);
+  g.addColorStop(0, '#1d4ed8');
+  g.addColorStop(1, '#f59e0b');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+};
+
+const images = await newDoc('Fixture images');
+{
+  const png = await images.embedPng(image(400, 300, gradient).toBuffer('image/png'));
+  const jpg = await images.embedJpg(image(400, 300, gradient).toBuffer('image/jpeg', 90));
+  for (const [label, picture] of [
+    ['IMG-PNG', png],
+    ['IMG-JPG', jpg],
+  ]) {
+    await addPage(images, label, A4);
+    images.getPages().at(-1).drawImage(picture, { x: 60, y: 420, width: 400, height: 300 });
+  }
+}
+await write('images-2p.pdf', images);
+
+// A "scan": every page is one full-page JPEG of pseudo-text lines and carries no text layer.
+const scan = await newDoc('Fixture scan');
+for (let n = 0; n < 2; n++) {
+  const picture = image(620, 877, (ctx, w, h) => {
+    ctx.fillStyle = '#fafafa';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#222';
+    let seed = 7 + n;
+    for (let y = 60; y < h - 60; y += 22) {
+      for (let x = 50; x < w - 50;) {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        const word = 20 + (seed % 60);
+        ctx.fillRect(x, y, Math.min(word, w - 50 - x), 8);
+        x += word + 10;
+      }
+    }
+  });
+  const jpg = await scan.embedJpg(picture.toBuffer('image/jpeg', 85));
+  const page = scan.addPage(A4);
+  page.drawImage(jpg, { x: 0, y: 0, width: A4[0], height: A4[1] });
+}
+await write('scanned-2p.pdf', scan);
+
+const many = await newDoc('Fixture 300 pages');
+{
+  const font = await many.embedFont(StandardFonts.Helvetica);
+  for (let n = 1; n <= 300; n++) {
+    const page = many.addPage(A4);
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width: A4[0],
+      height: A4[1],
+      color: rgb((n % 10) / 12 + 0.1, 0.9 - (n % 7) / 20, 0.95),
+    });
+    page.drawText(`PAGE ${String(n)}`, {
+      x: 60,
+      y: 420,
+      size: 48,
+      font,
+      color: rgb(0.05, 0.05, 0.2),
+    });
+  }
+}
+await write('pages-300.pdf', many);
 
 writeFileSync(join(outDir, 'truncated.pdf'), aBytes.slice(0, Math.floor(aBytes.length / 2)));
 writeFileSync(join(outDir, 'zero-bytes.pdf'), new Uint8Array(0));
