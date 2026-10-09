@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # qpdf is a test-only tool: it validates the PDFs we produce, independently of production code.
+      - name: Install qpdf
+        run: sudo apt-get update && sudo apt-get install -y qpdf
+
+      - name: Lint commit messages
+        if: github.event_name == 'pull_request'
+        run: pnpm exec commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Lint and layer rules
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit, property, integration and boundary tests
+        run: pnpm test
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level=high --prod
+
+      - name: License audit
+        run: pnpm licenses:check
+
+      - name: Build
+        run: pnpm build
+
+      - name: Bundle size
+        run: pnpm size
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @vidopdf/web exec playwright install --with-deps chromium webkit
+
+      - name: E2E, accessibility and privacy (Chromium)
+        run: pnpm e2e
+
+      - name: E2E, accessibility and privacy (WebKit)
+        run: pnpm e2e:webkit
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: packages/core/coverage
+          if-no-files-found: ignore
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          if-no-files-found: ignore
