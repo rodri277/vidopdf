@@ -39,8 +39,19 @@ export {
   withWorkspace,
 } from './history/session';
 export type { Session } from './history/session';
-export { buildExportPlan, exportPageCount } from './export/export-plan';
-export type { AssembleStep, ExportPlan, ExportStep } from './export/export-plan';
+export {
+  buildExportPlan,
+  buildExtractPlan,
+  buildSplitPlan,
+  exportPageCount,
+  outputPageCount,
+  suggestedBaseName,
+} from './export/export-plan';
+export type { AssembleStep, ExportOutput, ExportPlan, ExportStep } from './export/export-plan';
+export { MAX_CANVAS_PIXELS, MEMORY_WARNING_BYTES } from './limits';
+export { paddedNumber, safeFileName, stripExtension, uniqueNames } from './names';
+export * from './split';
+export * from './images';
 export { LruCache } from './cache/lru';
 export { planRenders } from './scheduling/render-plan';
 export type { RenderPlan, RenderPlanInput } from './scheduling/render-plan';
