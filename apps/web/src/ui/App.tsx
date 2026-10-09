@@ -1,6 +1,8 @@
-import { useCallback, useRef } from 'react';
+import { Suspense, lazy, useCallback, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { useSession } from '../state/session-store';
+import { ContextPanel } from './ContextPanel';
+import { ExportDialog } from './ExportDialog';
 import { FilesPanel } from './FilesPanel';
 import { Footer } from './Footer';
 import { Stage } from './Stage';
@@ -8,6 +10,11 @@ import { useUi } from '../state/ui-store';
 import { useShortcuts } from './useShortcuts';
 import { TopBar } from './TopBar';
 import './app.css';
+
+// The preview is only needed once a page is opened, so it stays out of the first download.
+const PreviewDialog = lazy(() =>
+  import('./PreviewDialog').then((m) => ({ default: m.PreviewDialog })),
+);
 
 export function App() {
   const input = useRef<HTMLInputElement>(null);
@@ -18,6 +25,7 @@ export function App() {
   }, []);
   useShortcuts(openPicker);
   const announcement = useUi((state) => state.announcement);
+  const previewOpen = useUi((state) => state.previewId !== null);
   const onFiles = useCallback(
     (files: File[]) => {
       void addFiles(files);
@@ -35,8 +43,15 @@ export function App() {
       <div className="body">
         <FilesPanel />
         <Stage onAddFiles={openPicker} onFiles={onFiles} />
+        <ContextPanel />
       </div>
       <Footer />
+      <ExportDialog />
+      {previewOpen && (
+        <Suspense fallback={null}>
+          <PreviewDialog />
+        </Suspense>
+      )}
       <div className="visually-hidden" role="status" aria-live="polite" data-testid="announcer">
         {announcement}
       </div>

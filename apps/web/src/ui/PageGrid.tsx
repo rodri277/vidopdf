@@ -17,6 +17,7 @@ import { PageCard, PageFace, fit } from './PageCard';
 import { sourceColor } from './source-colors';
 
 /** Rows kept ready above and below the screen. */
+export const GRID_ID = 'page-grid';
 const OVERSCAN_ROWS = 1;
 /** Rows whose thumbnails are requested; wider than what is mounted so scrolling feels instant. */
 const PREFETCH_ROWS = 2;
@@ -266,6 +267,7 @@ export function PageGrid() {
     >
       <div
         ref={scroller}
+        id={GRID_ID}
         className="grid-scroll"
         role="listbox"
         aria-multiselectable="true"

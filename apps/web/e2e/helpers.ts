@@ -52,7 +52,7 @@ export async function exportPdf(page: Page): Promise<Buffer> {
     .getByRole('button', { name: /Exportar|Export$/ })
     .first()
     .click();
-  const save = page.getByRole('button', { name: /^(Guardar|Save)$/ });
+  const save = page.getByRole('button', { name: /^(Guardar PDF|Save PDF)$/ });
   await expect(save).toBeVisible();
   const download = page.waitForEvent('download');
   await save.click();
