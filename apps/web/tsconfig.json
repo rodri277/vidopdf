@@ -12,6 +12,7 @@
     "vite.config.ts",
     "vitest.config.ts",
     "playwright.config.ts",
-    "playwright.webkit.config.ts"
+    "playwright.webkit.config.ts",
+    "playwright.firefox.config.ts"
   ]
 }

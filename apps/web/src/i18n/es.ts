@@ -253,6 +253,11 @@ export const es = {
     version: 'Versión {{version}}',
     nav: 'Información legal',
   },
+  crash: {
+    title: 'Algo ha fallado',
+    body: 'La aplicación ha encontrado un error inesperado. Tus archivos originales no han cambiado; al recargar se vacía el espacio de trabajo y puedes volver a abrirlos.',
+    reload: 'Recargar',
+  },
   legal: {
     navLabel: 'Información legal',
     back: 'Volver a mis archivos',

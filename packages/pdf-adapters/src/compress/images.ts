@@ -7,6 +7,8 @@ import {
   decodePDFRawStream,
 } from '@cantoo/pdf-lib';
 import type { PDFContext, PDFDocument, PDFObject, PDFRef } from '@cantoo/pdf-lib';
+import { undoPredictor } from './predictor';
+import type { PredictorParams } from './predictor';
 
 /** A picture inside a PDF that this version knows how to compress. */
 export interface CompressibleImage {
@@ -16,6 +18,10 @@ export interface CompressibleImage {
   readonly height: number;
   readonly source: 'jpeg' | 'flate';
   readonly colors: 1 | 3;
+  /** How Flate samples were predicted (/DecodeParms); predictor 1 means not at all. */
+  readonly predictor: PredictorParams;
+  /** An RGB ICC profile to keep on the new picture, so its colours do not shift. */
+  readonly iccProfile: PDFObject | undefined;
 }
 
 const asNumber = (context: PDFContext, value: PDFObject | undefined): number | undefined => {
@@ -46,6 +52,31 @@ function iccComponents(context: PDFContext, space: PDFArray): 1 | 3 | undefined 
   if (!(kind instanceof PDFName) || kind.decodeText() !== 'ICCBased') return undefined;
   if (!(profile instanceof PDFRawStream)) return undefined;
   return toComponents(asNumber(context, profile.dict.get(PDFName.of('N'))));
+}
+
+/** /DecodeParms of a single-filter stream, with the defaults the PDF standard gives. */
+function predictorOf(context: PDFContext, dict: PDFDict): PredictorParams {
+  const raw = dict.get(PDFName.of('DecodeParms'));
+  let parms = raw === undefined ? undefined : context.lookup(raw);
+  if (parms instanceof PDFArray)
+    parms = parms.size() === 1 ? context.lookup(parms.get(0)) : undefined;
+  const read = (key: string, fallback: number) =>
+    parms instanceof PDFDict
+      ? (asNumber(context, parms.get(PDFName.of(key))) ?? fallback)
+      : fallback;
+  return {
+    predictor: read('Predictor', 1),
+    colors: read('Colors', 1),
+    bitsPerComponent: read('BitsPerComponent', 8),
+    columns: read('Columns', 1),
+  };
+}
+
+/** The colour space entry itself when it is an RGB ICC profile, to reuse on the new picture. */
+function iccRgbProfile(context: PDFContext, dict: PDFDict): PDFObject | undefined {
+  const raw = dict.get(PDFName.of('ColorSpace'));
+  const space = raw === undefined ? undefined : context.lookup(raw);
+  return space instanceof PDFArray && iccComponents(context, space) === 3 ? raw : undefined;
 }
 
 /** 1 for grey, 3 for RGB, undefined for everything else (CMYK, indexed, calibrated, spot...). */
@@ -85,7 +116,16 @@ function describeImage(
   if (colors === undefined || width === undefined || height === undefined || bits !== 8)
     return undefined;
   if (filter !== 'DCTDecode' && filter !== 'FlateDecode') return undefined;
-  return { ref, stream, width, height, source: filter === 'DCTDecode' ? 'jpeg' : 'flate', colors };
+  return {
+    ref,
+    stream,
+    width,
+    height,
+    source: filter === 'DCTDecode' ? 'jpeg' : 'flate',
+    colors,
+    predictor: predictorOf(context, dict),
+    iccProfile: iccRgbProfile(context, dict),
+  };
 }
 
 /** Every picture of the document this version can compress, once each. */
@@ -101,8 +141,11 @@ export function collectImages(doc: PDFDocument): CompressibleImage[] {
 
 /** The decoded samples of a Flate picture (predictors undone), or undefined if they do not add up. */
 export function flateSamples(image: CompressibleImage): Uint8Array | undefined {
-  const samples = decodePDFRawStream(image.stream).decode();
-  return samples.length >= image.width * image.height * image.colors ? samples : undefined;
+  const inflated = decodePDFRawStream(image.stream).decode();
+  const samples = undoPredictor(inflated, image.predictor, image.width, image.height, image.colors);
+  return samples !== undefined && samples.length >= image.width * image.height * image.colors
+    ? samples
+    : undefined;
 }
 
 export function jpegBytes(image: CompressibleImage): Uint8Array {

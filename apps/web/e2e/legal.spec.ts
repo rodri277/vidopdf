@@ -37,6 +37,9 @@ test.describe('legal pages inside the app', () => {
       await expect(page.getByRole('heading', { level: 2, name: entry.title })).toBeVisible();
       await page.getByRole('button', { name: 'English' }).click();
       await expect(page.getByRole('main')).not.toContainText(entry.title);
+      // Switching the language must not pull the focus to the title (Safari does not focus a
+      // clicked button, so this checks where the focus did not go).
+      await expect(page.getByRole('heading', { level: 2 })).not.toBeFocused();
       expect((await new AxeBuilder({ page }).withTags(tags).analyze()).violations).toEqual([]);
       await page.reload();
       await expect(page.getByRole('main')).toBeVisible();

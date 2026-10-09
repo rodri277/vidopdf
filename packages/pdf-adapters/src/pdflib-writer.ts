@@ -72,8 +72,9 @@ async function addPage(
   }
   const [page] = await output.copyPages(source, [selection.pageIndex]);
   if (page === undefined) return pdfError('internal', 'copyPages returned nothing');
-  const base = page.getRotation().angle;
-  page.setRotation(degrees((base + selection.rotation) % 360));
+  // Some files carry /Rotate -90 or 450; both are legal, the sum is kept in 0 to 270.
+  const turned = (((page.getRotation().angle + selection.rotation) % 360) + 360) % 360;
+  page.setRotation(degrees(turned));
   output.addPage(page);
   return undefined;
 }
@@ -82,6 +83,19 @@ async function assemble(
   sources: ReadonlyMap<string, Uint8Array>,
   pages: readonly ExportPage[],
   options: WriteOptions = {},
+): Promise<Result<Uint8Array, PdfError>> {
+  try {
+    return await assembleUnsafe(sources, pages, options);
+  } catch (error) {
+    // A file that loaded can still fail while its pages are copied (a broken object deep inside).
+    return err(pdfError('corrupt', describe(error)));
+  }
+}
+
+async function assembleUnsafe(
+  sources: ReadonlyMap<string, Uint8Array>,
+  pages: readonly ExportPage[],
+  options: WriteOptions,
 ): Promise<Result<Uint8Array, PdfError>> {
   if (pages.length === 0) return err(pdfError('empty', 'no pages selected'));
   const needed = new Set(pages.flatMap((p) => (p.kind === 'original' ? [p.sourceId] : [])));

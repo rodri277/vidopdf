@@ -254,6 +254,11 @@ export const en: Widen<typeof es> = {
     version: 'Version {{version}}',
     nav: 'Legal information',
   },
+  crash: {
+    title: 'Something went wrong',
+    body: 'The application hit an unexpected error. Your original files have not changed; reloading empties the workspace and you can open them again.',
+    reload: 'Reload',
+  },
   legal: {
     navLabel: 'Legal information',
     back: 'Back to my files',

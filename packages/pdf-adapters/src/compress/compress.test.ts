@@ -1,4 +1,14 @@
-import { PDFDocument, degrees } from '@cantoo/pdf-lib';
+import {
+  PDFDocument,
+  PDFName,
+  PDFRawStream,
+  concatTransformationMatrix,
+  degrees,
+  drawObject,
+  popGraphicsState,
+  pushGraphicsState,
+} from '@cantoo/pdf-lib';
+import { deflateSync } from 'node:zlib';
 import { createCanvas } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
 import type { CompressionOutcome, CompressionPreset } from '@vidopdf/core';
@@ -217,5 +227,97 @@ describe('createCompressor', () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) qpdfCheck(result.value.bytes);
+  });
+});
+
+describe('lossless pictures stored with a predictor', () => {
+  /** A photo-like picture stored as Flate with PNG row filters, as many PDF producers write them. */
+  /** Rows of RGB samples, each preceded by its PNG filter byte (Sub or Up, against the row before). */
+  function pngRows(width: number, height: number, filterType: 1 | 2): Uint8Array {
+    const rgba = photo(width, height).getContext('2d').getImageData(0, 0, width, height).data;
+    const rgb = Uint8Array.from({ length: width * height * 3 }, (_, i) => {
+      return rgba[Math.floor(i / 3) * 4 + (i % 3)] ?? 0;
+    });
+    const rowBytes = width * 3;
+    const encoded = new Uint8Array(height * (rowBytes + 1));
+    for (let y = 0; y < height; y++) {
+      encoded[y * (rowBytes + 1)] = filterType;
+      for (let i = 0; i < rowBytes; i++) {
+        const value = rgb[y * rowBytes + i] ?? 0;
+        const reference =
+          filterType === 1 ? (i >= 3 ? rgb[y * rowBytes + i - 3] : 0) : rgb[(y - 1) * rowBytes + i];
+        encoded[y * (rowBytes + 1) + 1 + i] = (value - (reference ?? 0)) & 0xff;
+      }
+    }
+    return encoded;
+  }
+
+  /** A photo-like picture stored as Flate with PNG row filters, as many PDF producers write them. */
+  async function withPredictor(filterType: 1 | 2): Promise<Uint8Array> {
+    const width = 1200;
+    const height = 800;
+    const encoded = pngRows(width, height, filterType);
+    const doc = await PDFDocument.create();
+    const dict = doc.context.obj({
+      Type: 'XObject',
+      Subtype: 'Image',
+      Width: width,
+      Height: height,
+      ColorSpace: 'DeviceRGB',
+      BitsPerComponent: 8,
+      Filter: 'FlateDecode',
+      DecodeParms: { Predictor: 15, Colors: 3, BitsPerComponent: 8, Columns: width },
+    });
+    const ref = doc.context.register(PDFRawStream.of(dict, deflateSync(encoded)));
+    const page = doc.addPage([595, 842]);
+    page.node.setXObject(PDFName.of('Im0'), ref);
+    page.pushOperators(
+      pushGraphicsState(),
+      concatTransformationMatrix(288, 0, 0, 192, 50, 300),
+      drawObject('Im0'),
+      popGraphicsState(),
+    );
+    return doc.save({ useObjectStreams: false });
+  }
+
+  for (const [name, filter] of [
+    ['Sub', 1],
+    ['Up', 2],
+  ] as const) {
+    it(`undoes the PNG "${name}" filter before recompressing, so the picture survives`, async () => {
+      const original = await withPredictor(filter);
+      const { bytes, report } = await run(original, 'balanced');
+      expect(report.imagesRecompressed).toBe(1);
+      const before = await renderPage(original, 1, { scale: 1 });
+      const after = await renderPage(bytes, 1, { scale: 1 });
+      expect(differingPixels(before, after, 40)).toBeLessThan(0.01);
+    });
+  }
+});
+
+describe('colour profiles', () => {
+  it('keeps an RGB ICC profile on the recompressed picture, so its colours do not shift', async () => {
+    const doc = await PDFDocument.create();
+    const picture = await doc.embedJpg(photo(1800, 1200).toBuffer('image/jpeg', 92));
+    doc.addPage([595, 842]).drawImage(picture, { x: 50, y: 300, width: 432, height: 288 });
+    // pdf-lib writes embedded pictures on save, so reopen the file to reach the picture's object.
+    const saved = await PDFDocument.load(await doc.save({ useObjectStreams: false }));
+    // Turn the picture's colour space into an ICC profile, as cameras and phones write them.
+    const profile = saved.context.register(
+      PDFRawStream.of(saved.context.obj({ N: 3, Alternate: 'DeviceRGB' }), new Uint8Array(128)),
+    );
+    const [image] = collectImages(saved);
+    if (image === undefined) throw new Error('no picture');
+    image.stream.dict.set(
+      PDFName.of('ColorSpace'),
+      saved.context.obj([PDFName.of('ICCBased'), profile]),
+    );
+    const original = await saved.save({ useObjectStreams: false });
+
+    const { bytes, report } = await run(original, 'balanced');
+    expect(report.imagesRecompressed).toBe(1);
+    const after = await firstImage(bytes);
+    expect(after.iccProfile).toBeDefined();
+    expect(after.width).toBe(900);
   });
 });

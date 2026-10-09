@@ -6,6 +6,7 @@ import '../design-system/tokens.css';
 import '../design-system/global.css';
 import { initI18n } from '../i18n';
 import { App } from '../ui/App';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 
 const container = document.getElementById('root');
 if (container === null) throw new Error('Missing #root element');
@@ -13,7 +14,9 @@ if (container === null) throw new Error('Missing #root element');
 void initI18n().then(() => {
   createRoot(container).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   );
 });

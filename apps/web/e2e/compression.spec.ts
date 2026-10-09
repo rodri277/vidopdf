@@ -46,6 +46,8 @@ test('the compressed result opens again and draws both pages', async ({ page }) 
   await dialog.getByRole('radio', { name: /^Pantalla/ }).check();
   await dialog.getByRole('button', { name: 'Exportar PDF' }).click();
   const saved = await saveResult(page);
+  // Leaving with pages loaded asks for confirmation; this test means to leave.
+  page.once('dialog', (dialog) => void dialog.accept());
   await page.reload();
   await page
     .getByTestId('file-input')

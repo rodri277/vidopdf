@@ -833,3 +833,13 @@ kbd {
   font-size: 12px;
   white-space: pre-wrap;
 }
+
+.crash {
+  display: grid;
+  place-content: center;
+  gap: var(--space-4);
+  max-width: 560px;
+  min-height: 100%;
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-4);
+}

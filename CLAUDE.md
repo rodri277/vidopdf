@@ -21,6 +21,8 @@ pnpm size             # initial JS budget (150 kB gzip)
 pnpm bench            # performance and memory benchmarks in headless Chromium; rewrites benchmarks/RESULTS.md (about 2 minutes; generates large documents on first run)
 pnpm e2e              # Playwright + axe + privacy test on Chromium (builds and serves the production bundle)
 pnpm e2e:webkit       # same on WebKit; `pnpm --filter @vidopdf/web exec playwright install webkit` once
+pnpm e2e:firefox      # same on Firefox (CI runs all three; a sandboxed shell may not start Firefox)
+pnpm lighthouse       # Lighthouse on the built site (build first); fails under 95
 ```
 
 `qpdf` must be installed locally (`brew install qpdf`): adapter tests run `qpdf --check` on every PDF we produce. It is a test tool only.
@@ -36,6 +38,7 @@ Before closing any task: lint, typecheck, test, and e2e if the UI changed. All g
 - `apps/web`: React UI, i18next (Spanish default, English), and `src/workers/` (the only place that may import `pdf-adapters`). `state/session-store.ts` wires core commands and history to the UI; `thumbnails/` is the render queue and cache; `ui/grid-layout.ts` and `ui/keys.ts` are pure and tested.
 - `apps/web/src/workers/*-core.ts` hold the logic of both workers and are tested with fakes; the `*.worker.ts` files only wire Comlink. `state/session-store.ts` is a factory (`createSessionStore(deps)`) tested with fake workers.
 - Anything that touches pdf.js inside a worker needs a real browser to be trusted: the Node tests cannot see problems like a missing `document` (ADR 009). Add an E2E for it.
+- Every call into a worker must end in a state the user can leave: `session-store.ts` turns a rejected call into a failure, and adapters return `Result` values instead of throwing.
 - Memory matters here (ADR 015): do not keep copies of a file's bytes in the main thread, trim pdf.js caches when drawing many pages in a row, and re-run `pnpm bench` after touching loading, rendering or export.
 - Every user action goes through `ui/actions.ts`, which also announces it to screen readers. Add new ones there, with a command, an inverse and a property test in `core` (ADR 010).
 - The original PDFs are never modified. The workspace is a plan of page references; the output PDF is built at export time.

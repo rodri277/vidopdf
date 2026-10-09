@@ -29,10 +29,15 @@ export type ImageDecision =
       readonly resize: boolean;
     };
 
-export type KeepReason = 'unknownPlacement' | 'lineArt' | 'alreadySmall' | 'tiny';
+export type KeepReason = 'unknownPlacement' | 'lineArt' | 'alreadySmall' | 'tiny' | 'tooLarge';
 
 /** Pictures this small are not worth the work. */
 const MIN_PIXELS = 4096;
+/**
+ * Pictures above this are not decoded at all: 40 megapixels is 160 MB of RGBA before any copy,
+ * enough to take a worker down on a modest machine.
+ */
+export const MAX_DECODED_PIXELS = 40_000_000;
 /** A resize smaller than this fraction is not worth losing quality twice for. */
 const RESIZE_THRESHOLD = 0.95;
 /** A JPEG that already uses fewer bits per pixel than this will not shrink usefully. */
@@ -68,8 +73,9 @@ export function decideImage(facts: ImageFacts, settings: CompressionSettings): I
 }
 
 /** Pictures that are never touched, whatever the preset. */
-function reasonToKeep(facts: ImageFacts): 'tiny' | 'unknownPlacement' | 'lineArt' | undefined {
+function reasonToKeep(facts: ImageFacts): KeepReason | undefined {
   if (facts.width * facts.height < MIN_PIXELS) return 'tiny';
+  if (facts.width * facts.height > MAX_DECODED_PIXELS) return 'tooLarge';
   if (facts.effectiveDpi === undefined || facts.effectiveDpi <= 0) return 'unknownPlacement';
   return facts.source === 'flate' && facts.looksLikeLineArt ? 'lineArt' : undefined;
 }

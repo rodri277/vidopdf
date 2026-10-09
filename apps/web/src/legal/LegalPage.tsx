@@ -57,15 +57,19 @@ export function LegalPage({ page }: { page: Page }) {
   const texts = i18n.language === 'en' ? legalEn : legalEs;
   const title = page === 'licenses' ? t('legal.licenses.title') : texts[page].title;
 
+  // Moving to a new page should be announced and should start reading from its title. Only a
+  // change of page moves the focus; switching the language must leave it on the language button.
   useEffect(() => {
-    // Moving to a new page should be announced and should start reading from its title.
     heading.current?.focus();
+  }, [page]);
+
+  useEffect(() => {
     const previous = document.title;
     document.title = `${title} · ${t('app.name')}`;
     return () => {
       document.title = previous;
     };
-  }, [page, title, t]);
+  }, [title, t]);
 
   return (
     <main className="legal" id="legal-page">
