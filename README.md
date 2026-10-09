@@ -35,7 +35,11 @@ Numbers are added here, with date and version, when each phase closes.
 ## Known limitations
 
 - Encrypted PDFs, including those with only owner restrictions, are rejected in this version.
-- Phase 0 renders the first page only and offers no page editing yet.
+- **Merging uses pdf-lib's `copyPages`, which loses some structure** (pinned by `merge-limits.test.ts`):
+  - bookmarks (the outline) are dropped;
+  - form fields stop being fillable: the widgets stay visible but the form definition is gone;
+  - tagging (`/MarkInfo`, `/StructTreeRoot`) and the document language are dropped, so the output is less accessible to screen readers.
+- External links and the text layer survive, and pictures are copied byte for byte (they are not recompressed in this version).
 
 ## How this was made with AI
 

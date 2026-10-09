@@ -155,4 +155,26 @@ describe('assemble', () => {
       [4, 4],
     ]);
   });
+
+  it('merges 300 pages in reverse order into a file qpdf accepts, in a few seconds', async () => {
+    const big = new Map([['big', fixture('pages-300.pdf')]]);
+    const reversed: ExportPage[] = Array.from({ length: 300 }, (_, i) => ({
+      kind: 'original',
+      sourceId: 'big',
+      pageIndex: 299 - i,
+      rotation: 0,
+    }));
+    const started = performance.now();
+    const result = await writer.assemble(big, reversed);
+    const elapsed = performance.now() - started;
+    if (!result.ok) throw new Error('assemble failed');
+    expect(elapsed).toBeLessThan(5000);
+    const out = await readPages(result.value);
+    expect(out).toHaveLength(300);
+    expect(out[0]?.text).toBe('PAGE 300');
+    expect(out[299]?.text).toBe('PAGE 1');
+    expect(() => {
+      qpdfCheck(result.value);
+    }).not.toThrow();
+  });
 });

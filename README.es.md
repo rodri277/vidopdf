@@ -25,7 +25,11 @@ Puertos y adaptadores: un `core` sin DOM, adaptadores sobre `pdfjs-dist` y `@can
 ## Limitaciones conocidas
 
 - Los PDFs cifrados, incluidos los que solo tienen restricciones de propietario, se rechazan en esta versión.
-- La Fase 0 solo dibuja la primera página y todavía no permite editar páginas.
+- **Unir usa `copyPages` de pdf-lib, que pierde parte de la estructura** (fijado por `merge-limits.test.ts`):
+  - se pierden los marcadores (el índice del documento);
+  - los campos de formulario dejan de ser rellenables: los widgets se ven, pero la definición del formulario desaparece;
+  - se pierde el etiquetado (`/MarkInfo`, `/StructTreeRoot`) y el idioma del documento, así que el resultado es menos accesible para lectores de pantalla.
+- Los enlaces externos y la capa de texto se conservan, y las imágenes se copian byte a byte (en esta versión no se recomprimen).
 
 ## Cómo se hizo con IA
 
