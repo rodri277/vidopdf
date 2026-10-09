@@ -6,6 +6,8 @@ import { unzipSync } from 'fflate';
 import { createCanvas } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
 import type { ExportPage, PageRef } from '@vidopdf/core';
+import { createCompressor } from '@vidopdf/pdf-adapters';
+import { nodeCodec } from '@vidopdf/pdf-adapters/testing';
 import { createPdfLibWriter } from '@vidopdf/pdf-adapters/pdf-lib';
 import { createZipBuilder } from '@vidopdf/pdf-adapters/zip';
 import { createExportCore } from './export-core';
@@ -38,6 +40,7 @@ async function setup(
 ) {
   const core = createExportCore({
     writer: createPdfLibWriter(),
+    compressor: createCompressor(nodeCodec),
     createZip: () => createZipBuilder(),
   });
   for (const [id, name] of Object.entries(files)) {
@@ -299,5 +302,113 @@ describe('release', () => {
     expect(
       await core.runPlan(1, [{ name: 'x.pdf', pages: [original('a', 0)] }], 'x.zip', ignore),
     ).toMatchObject({ ok: false });
+  });
+});
+
+describe('runPlan with compression', () => {
+  /** A noisy 2400 x 1600 picture on an A4 page: about 300 dpi, plenty to save at "balanced". */
+  const heavyPicture = () => {
+    const canvas = createCanvas(2400, 1600);
+    const context = canvas.getContext('2d');
+    const gradient = context.createLinearGradient(0, 0, 2400, 1600);
+    gradient.addColorStop(0, '#2a6fd6');
+    gradient.addColorStop(1, '#f0b060');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 2400, 1600);
+    const pixels = context.getImageData(0, 0, 2400, 1600);
+    let state = 11;
+    for (let index = 0; index < pixels.data.length; index += 4) {
+      state = (state * 1103515245 + 12345) & 0x7fffffff;
+      const grain = (state / 0x7fffffff - 0.5) * 16;
+      pixels.data[index] = (pixels.data[index] ?? 0) + grain;
+      pixels.data[index + 1] = (pixels.data[index + 1] ?? 0) + grain;
+      pixels.data[index + 2] = (pixels.data[index + 2] ?? 0) + grain;
+    }
+    context.putImageData(pixels, 0, 0);
+    return new Uint8Array(canvas.toBuffer('image/png'));
+  };
+
+  async function withPicture() {
+    const core = await setup({ a: 'mixed-sizes-3p.pdf' });
+    const made = await core.registerImage('img', heavyPicture(), {
+      paper: 'a4',
+      orientation: 'auto',
+      margin: 'small',
+    });
+    if (!made.ok) throw new Error('registerImage failed');
+    return core;
+  }
+
+  it('reports the size before and after, and the file really is smaller and valid', async () => {
+    const core = await withPicture();
+    const progress: [number, number][] = [];
+    const result = await core.runPlan(
+      1,
+      [{ name: 'photo.pdf', pages: [original('img', 0)], compression: 'balanced' }],
+      'x.zip',
+      (done, total) => progress.push([done, total]),
+    );
+    if (!result.ok) throw new Error('runPlan failed');
+    const summary = result.value.compression;
+    expect(summary).toMatchObject({ picturesFound: 1, picturesRecompressed: 1 });
+    expect(summary?.bytesBefore).toBeGreaterThan(result.value.bytes.byteLength * 3);
+    expect(await pageCount(result.value.bytes)).toBe(1);
+    // Building is the first half of the bar and compressing the second.
+    expect(progress.at(-1)).toEqual([2, 2]);
+    expect(progress.every(([, total]) => total === 2)).toBe(true);
+  });
+
+  it('adds nothing to the result when compression was not asked for', async () => {
+    const core = await withPicture();
+    const result = await core.runPlan(
+      2,
+      [{ name: 'photo.pdf', pages: [original('img', 0)] }],
+      'x.zip',
+      ignore,
+    );
+    expect(result.ok && result.value.compression).toBeUndefined();
+  });
+
+  it('totals the figures of every file in a ZIP', async () => {
+    const core = await withPicture();
+    const result = await core.runPlan(
+      3,
+      [
+        { name: 'one.pdf', pages: [original('img', 0)], compression: 'screen' },
+        { name: 'two.pdf', pages: [original('a', 0)], compression: 'screen' },
+      ],
+      'x.zip',
+      ignore,
+    );
+    if (!result.ok) throw new Error('runPlan failed');
+    expect(result.value).toMatchObject({ kind: 'zip', fileCount: 2 });
+    expect(result.value.compression?.picturesRecompressed).toBe(1);
+    expect(Object.keys(unzipSync(result.value.bytes))).toEqual(['one.pdf', 'two.pdf']);
+  });
+
+  it('keeps the file as built when there is nothing to gain', async () => {
+    const core = await setup({ a: 'mixed-sizes-3p.pdf' });
+    const result = await core.runPlan(
+      4,
+      [{ name: 'text.pdf', pages: range('a', 3), compression: 'balanced' }],
+      'x.zip',
+      ignore,
+    );
+    if (!result.ok) throw new Error('runPlan failed');
+    expect(result.value.compression).toMatchObject({ picturesRecompressed: 0 });
+    expect(await pageCount(result.value.bytes)).toBe(3);
+  });
+
+  it('stops when cancelled while compressing', async () => {
+    const core = await withPicture();
+    const running = core.runPlan(
+      5,
+      [{ name: 'photo.pdf', pages: [original('img', 0)], compression: 'balanced' }],
+      'x.zip',
+      (done, total) => {
+        if (done === total / 2) core.cancelJob(5);
+      },
+    );
+    expect(await running).toMatchObject({ ok: false, error: { kind: 'cancelled' } });
   });
 });

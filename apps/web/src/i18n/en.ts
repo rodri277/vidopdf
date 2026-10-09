@@ -88,6 +88,7 @@ export const en: Widen<typeof es> = {
     tabsLabel: 'What do you want to get',
     tabs: { pdf: 'One PDF', split: 'Split', images: 'Images' },
     running: 'Building the files… {{done}} of {{total}} pages',
+    runningCompressed: 'Building and compressing… {{percent}} %',
     runningImages: 'Drawing the pages… {{done}} of {{total}}',
     ready: 'Ready: {{pages}} pages, {{size}}.',
     readyMany: 'Ready: {{files}} files, {{pages}} pages, {{size}}.',
@@ -103,6 +104,17 @@ export const en: Widen<typeof es> = {
     back: 'Back',
     cancel: 'Cancel',
     close: 'Close',
+    compressed: 'Before compressing: {{before}}. Now: {{after}} ({{percent}} % smaller).',
+    compressedNothing:
+      "There was nothing to save in this file's pictures (or they were already light): it is left as it was.",
+    compression: {
+      legend: 'Reduce the size',
+      off: 'Do not compress',
+      screen: 'Screen: the smallest (96 dpi)',
+      balanced: 'Balanced: for email (150 dpi)',
+      print: 'Print: higher quality (220 dpi)',
+      hint: 'Shrinks the photos and scans inside the PDF; text does not change. The pictures in the new file lose some quality, but your originals are never touched. You will see the real size before saving.',
+    },
     pdf: {
       summary_one: 'One PDF of {{count}} page will be exported.',
       summary_other: 'One PDF of {{count}} pages will be exported.',
@@ -235,7 +247,34 @@ export const en: Widen<typeof es> = {
     unsupportedImage: '{{name}}: only JPEG and PNG images are supported.',
   },
   footer: {
+    privacy: 'Privacy',
+    legal: 'Legal notice',
+    terms: 'Terms',
     licenses: 'Licenses',
     version: 'Version {{version}}',
+    nav: 'Legal information',
+  },
+  legal: {
+    navLabel: 'Legal information',
+    back: 'Back to my files',
+    updated: 'Last reviewed: {{date}}.',
+    licenses: {
+      title: 'Licenses',
+      intro:
+        'Vidopdf is free software under the MIT license (© 2026 vidotho). It works thanks to these third-party components, each under its own license. This list is generated when the site is built and checked on every change.',
+      source: 'Source code on GitHub',
+      packages: 'Packages shipped to the browser',
+      name: 'Name',
+      version: 'Version',
+      license: 'License',
+      bundled: 'Bundled with pdf.js',
+      bundledHint:
+        'Served from this same site (/pdfjs/): image decoders, character maps, standard fonts and color profiles.',
+      texts: 'Full texts',
+      textsHint: 'The copyright notices and license texts of every component.',
+      fullTexts: 'Show the full texts',
+      fullTextsFailed: 'The texts could not be loaded. Try reloading the page.',
+      loading: 'Loading…',
+    },
   },
 };

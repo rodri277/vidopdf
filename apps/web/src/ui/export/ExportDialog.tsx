@@ -4,6 +4,7 @@ import type { JobState } from '../../state/session-store';
 import { useUi } from '../../state/ui-store';
 import type { ExportMode } from '../../state/ui-store';
 import { formatBytes } from '../format';
+import type { ProducedFile } from '../../workers/api';
 import { Modal } from '../Modal';
 import { ImagesPanel } from './ImagesPanel';
 import { PdfPanel } from './PdfPanel';
@@ -85,7 +86,9 @@ function Running({ job }: { job: Extract<JobState, { phase: 'running' }> }) {
     <>
       <progress max={job.total} value={job.done} aria-label={t('export.title')} />
       <p role="status" className="mono">
-        {t(text, { done: job.done, total: job.total })}
+        {job.compressing === true
+          ? t('export.runningCompressed', { percent: Math.round((job.done / job.total) * 100) })
+          : t(text, { done: job.done, total: job.total })}
       </p>
       <div className="modal-actions">
         <button type="button" className="btn" onClick={cancelJob}>
@@ -96,12 +99,31 @@ function Running({ job }: { job: Extract<JobState, { phase: 'running' }> }) {
   );
 }
 
+function Compressed({ result }: { result: ProducedFile }) {
+  const { t } = useTranslation();
+  const summary = result.compression;
+  if (summary === undefined) return null;
+  const saved = 1 - summary.bytesAfter / summary.bytesBefore;
+  if (summary.picturesRecompressed === 0 || saved <= 0)
+    return <p className="muted">{t('export.compressedNothing')}</p>;
+  return (
+    <p>
+      {t('export.compressed', {
+        before: formatBytes(summary.bytesBefore),
+        after: formatBytes(summary.bytesAfter),
+        percent: Math.round(saved * 100),
+      })}
+    </p>
+  );
+}
+
 function Ready({ job }: { job: Extract<JobState, { phase: 'ready' }> }) {
   const { t } = useTranslation();
   const { dismissJob, saveResult } = useSession.getState();
   return (
     <>
       <p role="status">{summaryOf(job, t)}</p>
+      <Compressed result={job.result} />
       <p className="mono result-name">{job.result.name}</p>
       {job.result.cappedPages > 0 && (
         <p className="muted">{t('export.capped', { count: job.result.cappedPages })}</p>

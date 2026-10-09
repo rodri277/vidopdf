@@ -1,5 +1,6 @@
 import type { PdfError } from '../errors';
 import type { Result } from '../result';
+import type { CompressionReport } from '../compression/report';
 import type { ImageExportOptions } from '../images/export';
 import type { ImagePageOptions } from '../images/layout';
 import type { ExportPage, Rotation } from '../workspace/page-ref';
@@ -96,13 +97,24 @@ export interface ZipBuilder {
 
 export type CompressionPreset = 'screen' | 'balanced' | 'print';
 
-/** Phase 3. Must never return a file larger than its input. */
+export interface CompressionOptions {
+  readonly signal?: AbortSignal;
+  /** Pictures dealt with so far, and the total. */
+  readonly onProgress?: (done: number, total: number) => void;
+}
+
+export interface CompressionOutcome {
+  readonly bytes: Uint8Array;
+  readonly report: CompressionReport;
+}
+
+/** Shrinks the pictures of a PDF. Never returns a file larger than its input. */
 export interface Compressor {
   compress(
     bytes: Uint8Array,
     preset: CompressionPreset,
-    signal?: AbortSignal,
-  ): Promise<Result<Uint8Array, PdfError>>;
+    options?: CompressionOptions,
+  ): Promise<Result<CompressionOutcome, PdfError>>;
 }
 
 /** Browser file access: the File System Access API when available, plain downloads otherwise. */

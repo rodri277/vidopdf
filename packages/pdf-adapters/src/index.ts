@@ -6,3 +6,6 @@ export { createZipBuilder } from './zip';
 export { readOutline } from './outline';
 export type { OutlineNode, OutlineSource } from './outline';
 export { imageToPdf } from './image-to-pdf';
+export { createCompressor } from './compress/compress';
+export type { CompressorOptions } from './compress/compress';
+export type { ImageCodec, Raster } from './compress/codec';

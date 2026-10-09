@@ -1,4 +1,5 @@
 import type {
+  CompressionPreset,
   EncodedImage,
   ExportPage,
   ImageExportOptions,
@@ -17,6 +18,18 @@ import type {
 export interface PlannedOutput {
   readonly name: string;
   readonly pages: readonly ExportPage[];
+  /** Recompress the pictures of the built PDF with this preset. */
+  readonly compression?: CompressionPreset;
+}
+
+/** What compression did to a finished download, so the dialog can show it before saving. */
+export interface CompressionSummary {
+  /** Size of the files as they were assembled, before compression. */
+  readonly bytesBefore: number;
+  /** Their size after compression (the files themselves, not the ZIP around them). */
+  readonly bytesAfter: number;
+  readonly picturesFound: number;
+  readonly picturesRecompressed: number;
 }
 
 /** A finished download: one file, or a ZIP of several. */
@@ -30,6 +43,8 @@ export interface ProducedFile {
   readonly pageCount: number;
   /** Pages whose resolution had to be lowered to fit the canvas budget (images only). */
   readonly cappedPages: number;
+  /** Present when the job asked for compression. */
+  readonly compression?: CompressionSummary;
 }
 
 /** A group of consecutive pages found by the size split: indices into the pages given, inclusive. */

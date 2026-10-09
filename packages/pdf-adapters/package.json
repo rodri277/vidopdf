@@ -9,7 +9,9 @@
     ".": "./src/index.ts",
     "./pdf-lib": "./src/pdflib-writer.ts",
     "./pdfjs": "./src/pdfjs-browser.ts",
-    "./zip": "./src/zip.ts"
+    "./zip": "./src/zip.ts",
+    "./compress": "./src/compress/browser.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "scripts": {
     "test": "vitest run",

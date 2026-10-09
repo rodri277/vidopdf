@@ -18,6 +18,7 @@ Produced by `packages/pdf-adapters/scripts/generate-fixtures.mjs` (run `node pac
 | `links-1p.pdf` | 1 | An external link annotation |
 | `images-2p.pdf` | 2 | One PNG and one JPEG picture (gradients drawn by code) |
 | `scanned-2p.pdf` | 2 | Full-page JPEGs of pseudo-text, no text layer: a stand-in for a scan |
+| `photos-heavy-2p.pdf` | 2 | A noisy 1800 x 1200 JPEG (quality 92) per page, drawn 6 x 4 in (300 dpi): something the compressor can shrink a lot |
 | `scanned-large-1p.pdf` | 1 | A 1240 x 1754 JPEG page: big enough to make pdf.js draw it through a scratch canvas (regression test for thumbnails of scans in a worker) |
 | `pages-300.pdf` | 300 | Performance and merge-order tests ("PAGE n" on each page) |
 | `encrypted-owner-restricted.pdf` | 1 | Empty user password, owner password set, printing, copying and modifying denied. v1 rejects it. |

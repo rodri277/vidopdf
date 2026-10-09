@@ -8,9 +8,18 @@ import {
   buildExtractPlan,
   buildSplitPlan,
   exportPageCount,
+  outputCompression,
   outputPageCount,
   suggestedBaseName,
 } from './export-plan';
+import type { ExportOutput } from './export-plan';
+import type { ExportPage } from '../workspace/page-ref';
+
+/** The pages of an output's assemble step. */
+function pagesOf(output: ExportOutput | undefined): readonly ExportPage[] {
+  const step = output?.steps[0];
+  return step?.kind === 'assemble' ? step.pages : [];
+}
 
 describe('buildExportPlan', () => {
   it('assembles the pages in order, with rotation, blank pages included', () => {
@@ -20,7 +29,7 @@ describe('buildExportPlan', () => {
     });
     const plan = buildExportPlan(ws);
     expect(plan.outputs).toHaveLength(1);
-    expect(plan.outputs[0]?.steps[0]?.pages).toEqual([
+    expect(pagesOf(plan.outputs[0])).toEqual([
       { kind: 'original', sourceId: 's1', pageIndex: 0, rotation: 0 },
       { kind: 'original', sourceId: 's1', pageIndex: 1, rotation: 90 },
       { kind: 'blank', width: 595, height: 842, rotation: 0 },
@@ -47,7 +56,7 @@ describe('buildExtractPlan', () => {
     const plan = buildExtractPlan(ws);
     expect(plan?.outputs[0]?.name).toBe('s1_extract.pdf');
     expect(
-      plan?.outputs[0]?.steps[0]?.pages.map((p) => (p.kind === 'original' ? p.pageIndex : -1)),
+      pagesOf(plan?.outputs[0]).map((p) => (p.kind === 'original' ? p.pageIndex : -1)),
     ).toEqual([1, 3]);
   });
 
@@ -97,5 +106,28 @@ describe('buildSplitPlan', () => {
     expect(buildSplitPlan(groups(splitEveryN(pages, 7)), '').outputs[0]?.name).toBe(
       'vidopdf_1.pdf',
     );
+  });
+});
+
+describe('compression in a plan', () => {
+  it('adds one compress step after the pages of every output, and none otherwise', () => {
+    const plain = buildExportPlan(workspaceOf(3));
+    expect(plain.outputs[0]?.steps.map((step) => step.kind)).toEqual(['assemble']);
+    expect(outputCompression(plain.outputs[0] ?? { name: '', steps: [] })).toBeUndefined();
+
+    const packed = buildExportPlan(workspaceOf(3), 'doc', 'balanced');
+    expect(packed.outputs[0]?.steps.map((step) => step.kind)).toEqual(['assemble', 'compress']);
+    expect(outputCompression(packed.outputs[0] ?? { name: '', steps: [] })).toBe('balanced');
+    expect(exportPageCount(packed)).toBe(3);
+  });
+
+  it('applies to extracts and to every part of a split', () => {
+    const ws = selectOnly(workspaceOf(3), workspaceOf(3).pages[1]?.id ?? '');
+    const extract = buildExtractPlan(ws, 'doc', 'screen');
+    expect(outputCompression(extract?.outputs[0] ?? { name: '', steps: [] })).toBe('screen');
+    const split = splitEveryN([...workspaceOf(4).pages], 2);
+    const parts = buildSplitPlan(split.ok ? split.value : [], 'doc', 'print');
+    expect(parts.outputs.map(outputCompression)).toEqual(['print', 'print']);
+    expect(exportPageCount(parts)).toBe(4);
   });
 });

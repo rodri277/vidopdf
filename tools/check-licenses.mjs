@@ -1,13 +1,15 @@
 // Audits the licenses of everything Vidopdf ships to the browser and keeps THIRD_PARTY_LICENSES.md
 // in sync. `node tools/check-licenses.mjs` verifies (CI); `--write` regenerates the file.
 // Policy: SPEC.md "Stack tecnológico" and docs/adr/005-license-policy.md.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { init } from 'license-checker-rseidelsohn';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outFile = join(root, 'THIRD_PARTY_LICENSES.md');
+// The same list as data, for the Licenses page inside the app.
+const dataFile = join(root, 'apps/web/src/legal/licenses.json');
 
 const ALLOWED = new Set([
   'MIT',
@@ -115,19 +117,31 @@ if (violations.length > 0) {
 }
 
 const next = render();
+const data = `${JSON.stringify(
+  {
+    packages: rows.map(({ name, version, license }) => ({ name, version, license })),
+    bundled: BUNDLED_WITH_PDFJS.map(([name, license]) => ({ name, license })),
+  },
+  null,
+  2,
+)}\n`;
+function read(file) {
+  try {
+    return readFileSync(file, 'utf8');
+  } catch {
+    return ''; // a missing file is reported below
+  }
+}
+
 if (process.argv.includes('--write')) {
   writeFileSync(outFile, next);
-  process.stdout.write(`Wrote ${outFile} (${String(rows.length)} packages)\n`);
+  mkdirSync(dirname(dataFile), { recursive: true });
+  writeFileSync(dataFile, data);
+  process.stdout.write(`Wrote ${outFile} and ${dataFile} (${String(rows.length)} packages)\n`);
 } else {
-  let current = '';
-  try {
-    current = readFileSync(outFile, 'utf8');
-  } catch {
-    // missing file is reported below
-  }
-  if (current !== next) {
+  if (read(outFile) !== next || read(dataFile) !== data) {
     process.stderr.write(
-      'THIRD_PARTY_LICENSES.md is out of date. Run: node tools/check-licenses.mjs --write\n',
+      'THIRD_PARTY_LICENSES.md or apps/web/src/legal/licenses.json is out of date. Run: node tools/check-licenses.mjs --write\n',
     );
     process.exit(1);
   }

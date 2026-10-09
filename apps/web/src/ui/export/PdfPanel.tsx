@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useSession } from '../../state/session';
+import { CompressionField } from './CompressionField';
 
 export function PdfPanel() {
   const { t } = useTranslation();
@@ -8,6 +9,7 @@ export function PdfPanel() {
   return (
     <>
       <p>{t('export.pdf.summary', { count })}</p>
+      <CompressionField />
       <div className="panel-actions">
         <button
           type="button"

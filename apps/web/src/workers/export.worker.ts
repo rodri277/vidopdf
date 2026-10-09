@@ -1,10 +1,15 @@
 import { expose, transfer } from 'comlink';
+import { createBrowserCompressor } from '@vidopdf/pdf-adapters/compress';
 import { createPdfLibWriter } from '@vidopdf/pdf-adapters/pdf-lib';
 import { createZipBuilder } from '@vidopdf/pdf-adapters/zip';
 import type { ExportWorkerApi } from './api';
 import { createExportCore } from './export-core';
 
-const core = createExportCore({ writer: createPdfLibWriter(), createZip: createZipBuilder });
+const core = createExportCore({
+  writer: createPdfLibWriter(),
+  compressor: createBrowserCompressor(),
+  createZip: createZipBuilder,
+});
 
 const api: ExportWorkerApi = {
   register: core.register,

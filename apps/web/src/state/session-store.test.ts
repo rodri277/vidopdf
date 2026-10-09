@@ -579,3 +579,43 @@ describe('browser capabilities', () => {
     expect(ctx.renderWorker.encodableFormats).toHaveBeenCalledOnce();
   });
 });
+
+describe('compression', () => {
+  const planned = (ctx: ReturnType<typeof setup>) =>
+    vi.mocked(ctx.exportWorker.runPlan).mock.calls.at(-1)?.[1] ?? [];
+
+  it('is off until the user chooses it, and then reaches the worker with every kind of job', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    expect(ctx.store.getState().compression).toBe('off');
+    await ctx.store.getState().startExport();
+    expect(planned(ctx)[0]?.compression).toBeUndefined();
+
+    ctx.store.getState().setCompression('balanced');
+    ctx.store.getState().dismissJob();
+    await ctx.store.getState().startExport();
+    expect(planned(ctx)[0]?.compression).toBe('balanced');
+
+    ctx.store.getState().setCompression('screen');
+    ctx.store.getState().dismissJob();
+    await ctx.store.getState().extractSelection();
+    expect(planned(ctx)[0]?.compression).toBe('screen');
+
+    ctx.store.getState().setCompression('print');
+    ctx.store.getState().dismissJob();
+    await ctx.store.getState().previewSplit({ mode: 'every', count: 1 });
+    await ctx.store.getState().runSplit();
+    expect(planned(ctx).map((output) => output.compression)).toEqual(['print', 'print', 'print']);
+  });
+
+  it('marks a running job as compressing so the dialog does not talk about pages', async () => {
+    const result = deferred<Produced>();
+    const ctx = setup({ exportWorker: { runPlan: vi.fn(() => result.promise) } });
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().setCompression('balanced');
+    const done = ctx.store.getState().startExport();
+    expect(ctx.store.getState().job).toMatchObject({ phase: 'running', compressing: true });
+    result.resolve(ok(produced()));
+    await done;
+  });
+});

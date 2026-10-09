@@ -277,6 +277,33 @@ const largeScan = await newDoc('Fixture large scan');
 }
 await write('scanned-large-1p.pdf', largeScan);
 
+// Two pages with a noisy photograph drawn at 300 dpi: plenty for the compressor to shrink.
+const heavy = await newDoc('Fixture heavy photographs');
+for (let n = 0; n < 2; n++) {
+  const w = 1800;
+  const h = 1200;
+  const canvas = createCanvas(w, h);
+  const ctx = canvas.getContext('2d');
+  const sky = ctx.createLinearGradient(0, 0, w, h);
+  sky.addColorStop(0, n === 0 ? '#2a6fd6' : '#d65a2a');
+  sky.addColorStop(1, '#f0d090');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+  const pixels = ctx.getImageData(0, 0, w, h);
+  let noise = 21 + n;
+  for (let i = 0; i < pixels.data.length; i += 4) {
+    noise = (noise * 1103515245 + 12345) & 0x7fffffff;
+    const grain = (noise / 0x7fffffff - 0.5) * 18;
+    pixels.data[i] += grain;
+    pixels.data[i + 1] += grain;
+    pixels.data[i + 2] += grain;
+  }
+  ctx.putImageData(pixels, 0, 0);
+  const jpg = await heavy.embedJpg(canvas.toBuffer('image/jpeg', 92));
+  heavy.addPage(A4).drawImage(jpg, { x: 80, y: 400, width: 432, height: 288 });
+}
+await write('photos-heavy-2p.pdf', heavy);
+
 const many = await newDoc('Fixture 300 pages');
 {
   const font = await many.embedFont(StandardFonts.Helvetica);
