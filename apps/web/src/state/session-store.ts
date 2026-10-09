@@ -215,20 +215,27 @@ export function createSessionStore(deps: SessionDeps) {
     const workspace = () => get().session.workspace;
     const busy = () => get().job.phase === 'running' || get().split.phase === 'measuring';
 
-    /** Hands a file's bytes to both workers and builds its SourceFile, or says why not. */
+    /** A fresh copy of the file's bytes. Reading again is cheaper than holding a copy in the main thread for the whole load. */
+    const readFresh = async (file: File) => new Uint8Array(await file.arrayBuffer());
+
+    /**
+     * Hands a file to both workers and builds its SourceFile, or says why not. Each worker gets
+     * its own freshly read copy, moved to it rather than copied, so the main thread never holds
+     * the file and only the two workers do.
+     */
     async function register(
       file: File,
-      bytes: Uint8Array<ArrayBuffer>,
       send: (
         id: string,
-        copy: Uint8Array,
+        bytes: Uint8Array<ArrayBuffer>,
       ) => Promise<{ pageCount: number; forRender?: Uint8Array } | PdfErrorKind>,
     ): Promise<Loaded | Rejection> {
       const id = deps.newId();
+      const bytes = await readFresh(file);
       const fingerprint = await fingerprintOf(bytes, file);
       const sent = await send(id, bytes);
       if (typeof sent === 'string') return { id, name: file.name, kind: sent };
-      const forRender = sent.forRender ?? bytes.slice();
+      const forRender = sent.forRender ?? (await readFresh(file));
       const opened = await deps.renderWorker().open(id, transfer(forRender, [forRender.buffer]));
       if (!opened.ok) {
         deps.exportWorker().release(id);
@@ -238,29 +245,25 @@ export function createSessionStore(deps: SessionDeps) {
         id,
         name: file.name,
         pageCount: sent.pageCount,
-        size: bytes.byteLength,
+        size: file.size,
         fingerprint,
         encrypted: false,
       };
       return { source };
     }
 
-    async function loadPdf(file: File): Promise<Loaded | Rejection> {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      return register(file, bytes, async (id, original) => {
-        const copy = original.slice();
-        const info = await deps.exportWorker().register(id, transfer(copy, [copy.buffer]));
+    function loadPdf(file: File): Promise<Loaded | Rejection> {
+      return register(file, async (id, bytes) => {
+        const info = await deps.exportWorker().register(id, transfer(bytes, [bytes.buffer]));
         return info.ok ? { pageCount: info.value.pageCount } : info.error.kind;
       });
     }
 
-    async function loadImage(file: File, options: ImagePageOptions): Promise<Loaded | Rejection> {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      return register(file, bytes, async (id, original) => {
-        const copy = original.slice();
+    function loadImage(file: File, options: ImagePageOptions): Promise<Loaded | Rejection> {
+      return register(file, async (id, bytes) => {
         const made = await deps
           .exportWorker()
-          .registerImage(id, transfer(copy, [copy.buffer]), options);
+          .registerImage(id, transfer(bytes, [bytes.buffer]), options);
         return made.ok
           ? { pageCount: made.value.info.pageCount, forRender: made.value.pdf }
           : made.error.kind;

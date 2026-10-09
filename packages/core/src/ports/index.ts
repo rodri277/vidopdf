@@ -35,7 +35,11 @@ export interface EncodedImage {
 
 /** Draws pages for thumbnails and previews. `Image` is whatever the platform paints (an ImageBitmap). */
 export interface PdfRenderer<Image> {
-  open(bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>>;
+  /** With `takeOwnership` the caller gives the bytes away, which saves a copy of the whole file. */
+  open(
+    bytes: Uint8Array,
+    options?: { readonly takeOwnership?: boolean },
+  ): Promise<Result<PdfInfo, PdfError>>;
   renderPage(
     pageIndex: number,
     targetWidth: number,
@@ -53,6 +57,11 @@ export interface PdfRenderer<Image> {
     signal?: AbortSignal,
     rotation?: Rotation,
   ): Promise<Result<EncodedImage, PdfError>>;
+  /**
+   * Lets go of what drawing pages leaves behind (decoded pictures, page objects). Call it every
+   * few dozen pages when drawing many in a row, or memory grows with the size of the document.
+   */
+  trim(): Promise<void>;
   close(): Promise<void>;
 }
 

@@ -1,0 +1,40 @@
+name: Benchmarks
+
+# Shared CI runners are noisy, so these numbers are not a gate. Run it by hand to get a dated
+# report (the same one `pnpm bench` writes to benchmarks/RESULTS.md) as a downloadable artifact.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter @vidopdf/benchmarks exec playwright install --with-deps chromium
+
+      - name: Run the benchmarks
+        # A missed budget is reported in the table, not turned into a failed job.
+        run: pnpm bench
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-results
+          path: |
+            benchmarks/RESULTS.md
+            benchmarks/results/latest.json

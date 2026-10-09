@@ -1,0 +1,20 @@
+{
+  "name": "@vidopdf/benchmarks",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Performance and memory benchmarks for Vidopdf, run in a real browser against the production build.",
+  "license": "MIT",
+  "scripts": {
+    "bench": "playwright test",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cantoo/pdf-lib": "^2.11.1",
+    "@napi-rs/canvas": "^1.0.10",
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^24.19.1",
+    "vitest": "^5.0.3"
+  }
+}

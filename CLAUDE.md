@@ -14,10 +14,11 @@ pnpm dev              # run the web app
 pnpm lint             # ESLint (strict type-checked, complexity <= 10) + layer rules
 pnpm format:check     # Prettier
 pnpm typecheck        # tsc in every package
-pnpm test             # core (90% coverage gate) + adapters + web + boundary tests
+pnpm test             # core (90% coverage gate) + adapters + web + benchmark helpers + boundary tests
 pnpm licenses:check   # license allow-list; `node tools/check-licenses.mjs --write` regenerates THIRD_PARTY_LICENSES.md
 pnpm build            # production build of apps/web
 pnpm size             # initial JS budget (150 kB gzip)
+pnpm bench            # performance and memory benchmarks in headless Chromium; rewrites benchmarks/RESULTS.md (about 2 minutes; generates large documents on first run)
 pnpm e2e              # Playwright + axe + privacy test on Chromium (builds and serves the production bundle)
 pnpm e2e:webkit       # same on WebKit; `pnpm --filter @vidopdf/web exec playwright install webkit` once
 ```
@@ -33,6 +34,9 @@ Before closing any task: lint, typecheck, test, and e2e if the UI changed. All g
 - `packages/core`: pure TypeScript, no DOM, no React, no PDF libraries. Domain, commands, history, ports. Results are `Result<T, PdfError>` values, never thrown across a worker boundary.
 - `packages/pdf-adapters`: implements the ports with `pdfjs-dist` and `@cantoo/pdf-lib`. One entry point per engine (`/pdfjs`, `/pdf-lib`).
 - `apps/web`: React UI, i18next (Spanish default, English), and `src/workers/` (the only place that may import `pdf-adapters`). `state/session-store.ts` wires core commands and history to the UI; `thumbnails/` is the render queue and cache; `ui/grid-layout.ts` and `ui/keys.ts` are pure and tested.
+- `apps/web/src/workers/*-core.ts` hold the logic of both workers and are tested with fakes; the `*.worker.ts` files only wire Comlink. `state/session-store.ts` is a factory (`createSessionStore(deps)`) tested with fake workers.
+- Anything that touches pdf.js inside a worker needs a real browser to be trusted: the Node tests cannot see problems like a missing `document` (ADR 009). Add an E2E for it.
+- Memory matters here (ADR 015): do not keep copies of a file's bytes in the main thread, trim pdf.js caches when drawing many pages in a row, and re-run `pnpm bench` after touching loading, rendering or export.
 - Every user action goes through `ui/actions.ts`, which also announces it to screen readers. Add new ones there, with a command, an inverse and a property test in `core` (ADR 010).
 - The original PDFs are never modified. The workspace is a plan of page references; the output PDF is built at export time.
 - Rules are enforced by `.dependency-cruiser.cjs` and proven by `tools/check-boundaries.test.mjs`.

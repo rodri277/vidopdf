@@ -18,6 +18,7 @@ Produced by `packages/pdf-adapters/scripts/generate-fixtures.mjs` (run `node pac
 | `links-1p.pdf` | 1 | An external link annotation |
 | `images-2p.pdf` | 2 | One PNG and one JPEG picture (gradients drawn by code) |
 | `scanned-2p.pdf` | 2 | Full-page JPEGs of pseudo-text, no text layer: a stand-in for a scan |
+| `scanned-large-1p.pdf` | 1 | A 1240 x 1754 JPEG page: big enough to make pdf.js draw it through a scratch canvas (regression test for thumbnails of scans in a worker) |
 | `pages-300.pdf` | 300 | Performance and merge-order tests ("PAGE n" on each page) |
 | `encrypted-owner-restricted.pdf` | 1 | Empty user password, owner password set, printing, copying and modifying denied. v1 rejects it. |
 | `encrypted-user-password.pdf` | 1 | Needs a password to open. v1 rejects it. |
@@ -26,6 +27,10 @@ Produced by `packages/pdf-adapters/scripts/generate-fixtures.mjs` (run `node pac
 | `not-a-pdf.pdf` | — | Plain text with a `.pdf` name |
 
 Real-world public-domain or CC0 samples (a true scan, a government form) are still to come; the generated ones above stand in for them and are enough to test behaviour deterministically. Each one added later lists its source and license here. Do not copy files from the pdf.js corpus without reviewing each license.
+
+## Benchmark documents — not committed
+
+The benchmarks generate their own large documents (1000 and 500 text pages, 500 scanned pages, 20 files of 25 pages) into `benchmarks/.fixtures/` on first use; see `benchmarks/src/fixtures.ts`.
 
 ## `generated/big/` — not committed
 

@@ -15,6 +15,24 @@ test('merges the pages of several files into one valid PDF', async ({ page }) =>
   expect(bytes.toString('latin1')).toMatch(/\/Count 5\b/);
 });
 
+test('a high-resolution scan, much larger than its thumbnail, gets drawn too', async ({ page }) => {
+  // pdf.js draws a picture this much bigger than its target through a scratch canvas; in a worker
+  // that once failed silently and left the page as an empty skeleton.
+  await openApp(page);
+  await page.getByTestId('file-input').setInputFiles([fixture('scanned-large-1p.pdf')]);
+  await expectThumbnail(page, 0);
+  const drawn = await pageCards(page)
+    .first()
+    .locator('canvas')
+    .evaluate((canvas: HTMLCanvasElement) => {
+      const context = canvas.getContext('2d');
+      if (context === null) return false;
+      const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+      return data.some((value, index) => index % 4 !== 3 && value < 100); // dark pixels: the text lines
+    });
+  expect(drawn).toBe(true);
+});
+
 test.describe('hostile input', () => {
   const cases = [
     ['zero-bytes.pdf', /vacío/],

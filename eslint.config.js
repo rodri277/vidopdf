@@ -61,7 +61,13 @@ export default tseslint.config(
     rules: reactHooks.configs.recommended.rules,
   },
   {
-    files: ['**/*.config.{js,ts}', 'eslint.config.js'],
+    // Playwright loads global setup and teardown through their default export.
+    files: [
+      '**/*.config.{js,ts}',
+      'eslint.config.js',
+      'benchmarks/src/setup.ts',
+      'benchmarks/src/teardown.ts',
+    ],
     rules: { 'no-restricted-exports': 'off' },
   },
   {

@@ -194,7 +194,8 @@ export const es = {
     cancel: 'Cancelar',
   },
   memory: {
-    warning: 'Llevas {{size}} cargados. Con tanto contenido el navegador puede ir lento.',
+    warning:
+      'Llevas {{size}} de PDFs cargados. Con tanto contenido el navegador puede ir lento o quedarse sin memoria: exporta por partes o quita algún archivo.',
   },
   files: {
     heading: 'Archivos',
