@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent, MouseEvent, RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { renderKey } from '@vidopdf/core';
-import { thumbnails } from '../thumbnails/thumbnails';
 import { useSession } from '../state/session-store';
-import { PageCard } from './PageCard';
-import { sourceColor } from './source-colors';
+import { THUMB_MAX, THUMB_MIN, useUi } from '../state/ui-store';
+import { PageGrid } from './PageGrid';
 
 function hasFiles(event: DragEvent): boolean {
   return event.dataTransfer?.types.includes('Files') ?? false;
@@ -45,9 +43,6 @@ function useFileDrop(target: RefObject<HTMLElement | null>, onFiles: (files: Fil
   return dragging;
 }
 
-/** Until the grid is virtualized, only the first pages are asked for. */
-const WANTED_LIMIT = 120;
-
 interface StageProps {
   onAddFiles: () => void;
   onFiles: (files: File[]) => void;
@@ -55,33 +50,15 @@ interface StageProps {
 
 export function Stage({ onAddFiles, onFiles }: StageProps) {
   const { t } = useTranslation();
-  const workspace = useSession((state) => state.session.workspace);
-  const select = useSession((state) => state.select);
+  const pageCount = useSession((state) => state.session.workspace.pages.length);
+  const thumbSize = useUi((state) => state.thumbSize);
+  const setThumbSize = useUi((state) => state.setThumbSize);
   const stage = useRef<HTMLElement>(null);
   const dragging = useFileDrop(stage, onFiles);
-  const { pages, sources } = workspace;
-  const selected = useMemo(() => new Set(workspace.selection), [workspace.selection]);
-  const sourceIndex = useMemo(() => new Map(sources.map((s, i) => [s.id, i])), [sources]);
-
-  useEffect(() => {
-    thumbnails.setWanted(
-      pages
-        .slice(0, WANTED_LIMIT)
-        .flatMap((page) =>
-          page.kind === 'original'
-            ? [{ key: renderKey(page), sourceId: page.sourceId, pageIndex: page.sourceIndex }]
-            : [],
-        ),
-    );
-  }, [pages]);
-
-  const onSelect = (id: string, event: MouseEvent | KeyboardEvent) => {
-    select(id, event.shiftKey ? 'range' : event.metaKey || event.ctrlKey ? 'toggle' : 'only');
-  };
 
   return (
     <main className="stage" ref={stage} data-dragging={dragging}>
-      {pages.length === 0 ? (
+      {pageCount === 0 ? (
         <div className="empty">
           <h2>{t('empty.title')}</h2>
           <p>{t('empty.hint')}</p>
@@ -91,33 +68,25 @@ export function Stage({ onAddFiles, onFiles }: StageProps) {
           </button>
         </div>
       ) : (
-        <div
-          className="grid"
-          role="listbox"
-          aria-multiselectable="true"
-          aria-label={t('grid.label')}
-        >
-          {pages.map((page, index) => {
-            const source =
-              page.kind === 'original' ? sources[sourceIndex.get(page.sourceId) ?? -1] : undefined;
-            return (
-              <PageCard
-                key={page.id}
-                page={page}
-                number={index + 1}
-                total={pages.length}
-                sourceName={source?.name ?? ''}
-                color={
-                  page.kind === 'original'
-                    ? sourceColor(sourceIndex.get(page.sourceId) ?? 0)
-                    : 'var(--border)'
-                }
-                selected={selected.has(page.id)}
-                onSelect={onSelect}
+        <>
+          <div className="stage-toolbar">
+            <span className="mono">{t('stage.pageCount', { count: pageCount })}</span>
+            <label className="zoom">
+              <span>{t('stage.zoom')}</span>
+              <input
+                type="range"
+                min={THUMB_MIN}
+                max={THUMB_MAX}
+                step={10}
+                value={thumbSize}
+                onChange={(event) => {
+                  setThumbSize(Number(event.target.value));
+                }}
               />
-            );
-          })}
-        </div>
+            </label>
+          </div>
+          <PageGrid />
+        </>
       )}
     </main>
   );

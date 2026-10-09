@@ -21,6 +21,7 @@ export {
   insertBlankPage,
   insertPages,
   movePages,
+  movePagesToGap,
   removePages,
   reorderPages,
   rotatePages,

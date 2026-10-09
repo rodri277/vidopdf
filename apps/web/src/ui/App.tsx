@@ -4,6 +4,8 @@ import { useSession } from '../state/session-store';
 import { FilesPanel } from './FilesPanel';
 import { Footer } from './Footer';
 import { Stage } from './Stage';
+import { useUi } from '../state/ui-store';
+import { useShortcuts } from './useShortcuts';
 import { TopBar } from './TopBar';
 import './app.css';
 
@@ -14,6 +16,8 @@ export function App() {
   const openPicker = useCallback(() => {
     input.current?.click();
   }, []);
+  useShortcuts(openPicker);
+  const announcement = useUi((state) => state.announcement);
   const onFiles = useCallback(
     (files: File[]) => {
       void addFiles(files);
@@ -33,6 +37,9 @@ export function App() {
         <Stage onAddFiles={openPicker} onFiles={onFiles} />
       </div>
       <Footer />
+      <div className="visually-hidden" role="status" aria-live="polite" data-testid="announcer">
+        {announcement}
+      </div>
       <input
         ref={input}
         type="file"

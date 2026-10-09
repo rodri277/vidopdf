@@ -60,3 +60,31 @@ export async function exportPdf(page: Page): Promise<Buffer> {
   const { readFile } = await import('node:fs/promises');
   return readFile(path);
 }
+
+/** The pages in document order, as `file#pageNumber` (or `blank`). */
+export async function order(page: Page): Promise<string[]> {
+  const origins = await pageCards(page).evaluateAll((cards) =>
+    cards.map((card) => card.getAttribute('data-origin') ?? '?'),
+  );
+  return origins.map((origin) => origin.replace('.pdf', ''));
+}
+
+export async function loadFive(page: Page): Promise<void> {
+  await openApp(page);
+  await page
+    .getByTestId('file-input')
+    .setInputFiles([fixture('mixed-sizes-3p.pdf'), fixture('rotated-2p.pdf')]);
+  await expect(pageCards(page)).toHaveCount(5);
+  await expectThumbnail(page, 4);
+}
+
+export const announcer = (page: Page): Locator => page.getByTestId('announcer');
+
+/** Clicks the card at `index` without changing how the grid is scrolled. */
+export async function clickCard(
+  page: Page,
+  index: number,
+  modifiers: ('Shift' | 'ControlOrMeta')[] = [],
+): Promise<void> {
+  await pageCards(page).nth(index).click({ modifiers });
+}
