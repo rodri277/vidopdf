@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   bookmarksFromOutline,
+  emptyWorkspace,
   buildSplitPlan,
   splitByBookmarks,
   splitBySize,
@@ -123,7 +124,7 @@ describe('split by bookmarks from a real outline', () => {
       ['Part B', 2],
       ['Part C', 1],
     ]);
-    const plan = buildSplitPlan(groups.value, 'book');
+    const plan = buildSplitPlan(emptyWorkspace, groups.value, 'book');
     expect(plan.outputs.map((o) => o.name)).toEqual([
       'book - Part A.pdf',
       'book - Part B.pdf',
@@ -160,7 +161,7 @@ describe('split into a ZIP', () => {
     const pages = [...pagesOf('a', 3), ...pagesOf('b', 2)];
     const groups = splitEveryN(pages, 2);
     if (!groups.ok) throw new Error('split failed');
-    const plan = buildSplitPlan(groups.value, 'combo');
+    const plan = buildSplitPlan(emptyWorkspace, groups.value, 'combo');
     const zip = createZipBuilder();
     for (const [index, output] of plan.outputs.entries()) {
       const group = groups.value[index];

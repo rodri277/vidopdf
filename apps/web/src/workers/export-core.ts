@@ -199,9 +199,13 @@ export function createExportCore(deps: ExportCoreDeps) {
         pages,
         limit,
         async (group) => {
-          const built = await deps.writer.assemble(sources, group.map(toExportPage), {
-            signal: controller.signal,
-          });
+          const built = await deps.writer.assemble(
+            sources,
+            group.map((page) => toExportPage(page)),
+            {
+              signal: controller.signal,
+            },
+          );
           if (!built.ok) throw new Error(built.error.kind);
           return built.value.byteLength;
         },

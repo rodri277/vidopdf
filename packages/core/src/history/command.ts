@@ -4,7 +4,19 @@ import { inDocumentOrder, withPages } from '../workspace/workspace';
 import type { SourceFile, Workspace } from '../workspace/workspace';
 
 export type CommandKind =
-  'add' | 'remove' | 'restore' | 'move' | 'rotate' | 'duplicate' | 'insertBlank';
+  | 'add'
+  | 'remove'
+  | 'restore'
+  | 'move'
+  | 'rotate'
+  | 'duplicate'
+  | 'insertBlank'
+  | 'stamps'
+  | 'metadata'
+  | 'bookmarks'
+  | 'crop'
+  | 'signature'
+  | 'forms';
 
 /** What the history shows. The UI turns it into text; the core knows no language. */
 export interface CommandLabel {
@@ -182,14 +194,29 @@ export function duplicatePages(
 ): Command {
   const wanted = new Set(ids);
   const entries: PageAt[] = [];
+  const copiedFrom = new Map<string, string>();
   let copies = 0;
   workspace.pages.forEach((page, index) => {
     const id = wanted.has(page.id) ? newIds[copies] : undefined;
     if (id === undefined) return;
     copies++;
+    copiedFrom.set(id, page.id);
     entries.push({ page: { ...page, id }, index: index + copies });
   });
-  return insertPages(entries, { kind: 'duplicate', count: entries.length });
+  const insert = insertPages(entries, { kind: 'duplicate', count: entries.length });
+  return {
+    ...insert,
+    apply(current) {
+      const next = insert.apply(current);
+      // A copy of a cropped or signed page is cropped and signed too.
+      const edits = { ...next.edits };
+      for (const [copy, original] of copiedFrom) {
+        const inherited = current.edits[original];
+        if (inherited !== undefined) edits[copy] = inherited;
+      }
+      return { ...next, edits };
+    },
+  };
 }
 
 export function insertBlankPage(workspace: Workspace, page: BlankPage, index: number): Command {

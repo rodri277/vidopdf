@@ -19,6 +19,12 @@ export const es = {
     move: 'mover páginas',
     rotate: 'girar páginas',
     duplicate: 'duplicar páginas',
+    stamps: 'sellos y numeración',
+    metadata: 'metadatos',
+    bookmarks: 'marcadores',
+    crop: 'recorte',
+    signature: 'firma',
+    forms: 'formulario',
     insertBlank: 'insertar página en blanco',
   },
   grid: {
