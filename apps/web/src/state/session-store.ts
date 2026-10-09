@@ -41,8 +41,6 @@ export type ExportState =
 
 /** A4 in PDF points: the size of a page inserted without a reference. */
 const BLANK_SIZE = { width: 595, height: 842 } as const;
-/** SPEC: soft warning above this much loaded PDF data. */
-export const MEMORY_WARNING_BYTES = 250 * 1024 * 1024;
 
 interface SessionState {
   session: Session;
@@ -228,8 +226,9 @@ export const useSession = create<SessionState>((set, get) => {
     async startExport() {
       const { workspace } = get().session;
       if (workspace.pages.length === 0 || get().exportState.phase === 'running') return;
-      const plan = buildExportPlan(workspace);
-      const pages = plan.steps.flatMap((step) => step.pages);
+      const [output] = buildExportPlan(workspace).outputs;
+      if (output === undefined) return;
+      const pages = output.steps.flatMap((step) => step.pages);
       const exportId = ++exportCounter;
       activeExport = exportId;
       set({ exportState: { phase: 'running', done: 0, total: pages.length } });
