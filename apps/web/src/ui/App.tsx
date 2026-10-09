@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 import { useSession } from '../state/session';
+import { navigate, useLegalPage } from '../legal/route';
 import { ContextPanel } from './ContextPanel';
 import { FilesPanel } from './FilesPanel';
 import { Footer } from './Footer';
@@ -17,6 +18,7 @@ const ExportDialog = lazy(() =>
 const ImageImportDialog = lazy(() =>
   import('./ImageImportDialog').then((m) => ({ default: m.ImageImportDialog })),
 );
+const LegalPage = lazy(() => import('../legal/LegalPage').then((m) => ({ default: m.LegalPage })));
 const PreviewDialog = lazy(() =>
   import('./PreviewDialog').then((m) => ({ default: m.PreviewDialog })),
 );
@@ -35,8 +37,10 @@ export function App() {
   const jobActive = useSession((state) => state.job.phase !== 'idle');
   const exportOpen = exportRequested || jobActive;
   const importOpen = useSession((state) => state.pendingImages.length > 0);
+  const legalPage = useLegalPage();
   const onFiles = useCallback(
     (files: File[]) => {
+      navigate(); // files added from a legal page are shown in the workspace
       void addFiles(files);
     },
     [addFiles],
@@ -49,11 +53,17 @@ export function App() {
   return (
     <div className="shell">
       <TopBar onAddFiles={openPicker} />
-      <div className="body">
-        <FilesPanel />
-        <Stage onAddFiles={openPicker} onFiles={onFiles} />
-        <ContextPanel />
-      </div>
+      {legalPage === undefined ? (
+        <div className="body">
+          <FilesPanel />
+          <Stage onAddFiles={openPicker} onFiles={onFiles} />
+          <ContextPanel />
+        </div>
+      ) : (
+        <Suspense fallback={<main className="legal" />}>
+          <LegalPage page={legalPage} />
+        </Suspense>
+      )}
       <Footer />
       <Suspense fallback={null}>
         {exportOpen && <ExportDialog />}
