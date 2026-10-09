@@ -1,7 +1,7 @@
 import { expose, transfer } from 'comlink';
 import { err, ok, pdfError } from '@vidopdf/core';
 import type { PdfRenderer } from '@vidopdf/core';
-import { createPdfjsRenderer } from '@vidopdf/pdf-adapters/pdfjs';
+import { createBrowserRenderer } from '@vidopdf/pdf-adapters/pdfjs';
 import type { RenderWorkerApi } from './api';
 
 const documents = new Map<string, PdfRenderer<ImageBitmap>>();
@@ -9,7 +9,7 @@ const running = new Map<number, AbortController>();
 
 const api: RenderWorkerApi = {
   async open(sourceId, bytes) {
-    const renderer = createPdfjsRenderer({
+    const renderer = createBrowserRenderer({
       workerSrc: '/pdfjs/pdf.worker.min.mjs',
       assetBaseUrl: '/pdfjs/',
     });

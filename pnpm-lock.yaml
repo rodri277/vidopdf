@@ -314,6 +314,9 @@ importers:
       '@vidopdf/core':
         specifier: workspace:*
         version: link:../core
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       pdfjs-dist:
         specifier: ^6.4.299
         version: 6.4.299
