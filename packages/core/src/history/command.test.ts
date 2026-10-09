@@ -9,6 +9,7 @@ import {
   insertBlankPage,
   insertPages,
   movePages,
+  movePagesToGap,
   reorderPages,
   rotatePages,
 } from './command';
@@ -77,6 +78,46 @@ describe('movePages', () => {
     const ws = workspaceOf(5);
     const command = movePages(ws, ['p4'], 0);
     expect(ids(command.invert(ws).apply(command.apply(ws)))).toEqual(ids(ws));
+  });
+});
+
+describe('movePagesToGap', () => {
+  const ws = workspaceOf(6);
+
+  it('drops pages into a gap of the current list, whatever leaves in front of it', () => {
+    // Gap 4 sits between p3 and p4; p0 and p1 leave from before it, so they land after p3.
+    expect(ids(movePagesToGap(ws, ['p0', 'p1'], 4).apply(ws))).toEqual([
+      'p2',
+      'p3',
+      'p0',
+      'p1',
+      'p4',
+      'p5',
+    ]);
+  });
+
+  it('moves to the very start and the very end', () => {
+    expect(ids(movePagesToGap(ws, ['p4'], 0).apply(ws))).toEqual([
+      'p4',
+      'p0',
+      'p1',
+      'p2',
+      'p3',
+      'p5',
+    ]);
+    expect(ids(movePagesToGap(ws, ['p1'], 6).apply(ws))).toEqual([
+      'p0',
+      'p2',
+      'p3',
+      'p4',
+      'p5',
+      'p1',
+    ]);
+  });
+
+  it('leaves the order alone when dropped on its own gap', () => {
+    expect(ids(movePagesToGap(ws, ['p2'], 2).apply(ws))).toEqual(ids(ws));
+    expect(ids(movePagesToGap(ws, ['p2'], 3).apply(ws))).toEqual(ids(ws));
   });
 });
 

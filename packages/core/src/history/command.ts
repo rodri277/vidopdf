@@ -161,6 +161,19 @@ export function movePages(workspace: Workspace, ids: readonly string[], toIndex:
   return reorderPages(order, { kind: 'move', count: moved.length });
 }
 
+/**
+ * Moves pages into a gap of the *current* list: gap 0 is before the first page, gap N after the
+ * last. This is what a drop target knows, so the caller does not have to account for the pages
+ * that leave their old place.
+ */
+export function movePagesToGap(workspace: Workspace, ids: readonly string[], gap: number): Command {
+  const moving = new Set(ids);
+  const leavingBefore = workspace.pages
+    .slice(0, Math.max(0, gap))
+    .filter((page) => moving.has(page.id)).length;
+  return movePages(workspace, ids, gap - leavingBefore);
+}
+
 /** Puts a copy right after each given page. `newIds` are consumed in document order. */
 export function duplicatePages(
   workspace: Workspace,
