@@ -1,5 +1,6 @@
 packages:
   - apps/*
   - packages/*
+  - benchmarks
 minimumReleaseAgeExclude:
   - vite@8.3.4

@@ -14,3 +14,7 @@ test-results/
 
 # Large benchmark fixtures, regenerated with `generate-fixtures.mjs --big`
 tests/fixtures/generated/big/
+
+# Benchmark output and the large documents it generates
+benchmarks/.fixtures/
+benchmarks/results/
