@@ -1,28 +1,37 @@
 import { useTranslation } from 'react-i18next';
-import { useWorkspace } from '../state/workspace-store';
 import { formatBytes } from './format';
+import { sourceColor } from './source-colors';
+import { MEMORY_WARNING_BYTES, totalLoadedBytes, useSession } from '../state/session-store';
 
 export function FilesPanel() {
   const { t } = useTranslation();
-  const files = useWorkspace((state) => state.files);
-  const rejections = useWorkspace((state) => state.rejections);
+  const workspace = useSession((state) => state.session.workspace);
+  const rejections = useSession((state) => state.rejections);
+  const loading = useSession((state) => state.loading);
+  const total = totalLoadedBytes(workspace);
+  const inUse = (sourceId: string) =>
+    workspace.pages.filter((page) => page.kind === 'original' && page.sourceId === sourceId).length;
 
   return (
     <aside className="files" aria-labelledby="files-heading">
       <h2 id="files-heading">{t('files.heading')}</h2>
-      {files.length === 0 && rejections.length === 0 ? (
+      {workspace.sources.length === 0 && rejections.length === 0 && loading === 0 ? (
         <p className="file-meta">{t('files.none')}</p>
       ) : (
         <ul>
-          {files.map((file) => (
-            <li key={file.id} className="file-item">
-              <span className="file-dot" style={{ background: file.color }} aria-hidden="true" />
+          {workspace.sources.map((source, index) => (
+            <li key={source.id} className="file-item">
+              <span
+                className="file-dot"
+                style={{ background: sourceColor(index) }}
+                aria-hidden="true"
+              />
               <div>
-                <div className="file-name" title={file.name}>
-                  {file.name}
+                <div className="file-name" title={source.name}>
+                  {source.name}
                 </div>
                 <div className="file-meta mono">
-                  {t('files.pages', { count: file.pageCount })} · {formatBytes(file.size)}
+                  {t('files.pages', { count: inUse(source.id) })} · {formatBytes(source.size)}
                 </div>
               </div>
             </li>
@@ -38,6 +47,16 @@ export function FilesPanel() {
             </li>
           ))}
         </ul>
+      )}
+      {loading > 0 && (
+        <p className="file-meta" role="status">
+          {t('files.loading', { count: loading })}
+        </p>
+      )}
+      {total > MEMORY_WARNING_BYTES && (
+        <p className="file-warning" role="status">
+          {t('memory.warning', { size: formatBytes(total) })}
+        </p>
       )}
     </aside>
   );

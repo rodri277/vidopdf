@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
+import { redoLabel, undoLabel } from '@vidopdf/core';
+import type { CommandLabel } from '@vidopdf/core';
 import { languages, setLanguage } from '../i18n';
 import type { Language } from '../i18n';
-import { useWorkspace } from '../state/workspace-store';
+import { useSession } from '../state/session-store';
 
 const LANGUAGE_NAMES: Record<Language, string> = { es: 'Español', en: 'English' };
 
@@ -11,9 +13,15 @@ interface TopBarProps {
 
 export function TopBar({ onAddFiles }: TopBarProps) {
   const { t, i18n } = useTranslation();
-  const hasFiles = useWorkspace((state) => state.files.length > 0);
-  const exporting = useWorkspace((state) => state.status.kind === 'exporting');
-  const exportAll = useWorkspace((state) => state.exportAll);
+  const session = useSession((state) => state.session);
+  const hasPages = session.workspace.pages.length > 0;
+  const exporting = useSession((state) => state.exportState.phase === 'running');
+  const { undo, redo, startExport } = useSession.getState();
+
+  const undoWhat = undoLabel(session);
+  const redoWhat = redoLabel(session);
+  const describe = (label: CommandLabel) =>
+    `${t(`history.${label.kind}`)} (${String(label.count)})`;
 
   return (
     <header className="topbar">
@@ -21,6 +29,33 @@ export function TopBar({ onAddFiles }: TopBarProps) {
       <button type="button" className="btn" onClick={onAddFiles}>
         {t('topbar.addFiles')}
       </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={undoWhat === undefined}
+        title={
+          undoWhat === undefined
+            ? t('topbar.nothingToUndo')
+            : `${t('topbar.undo')}: ${describe(undoWhat)}`
+        }
+        onClick={undo}
+      >
+        {t('topbar.undo')}
+      </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={redoWhat === undefined}
+        title={
+          redoWhat === undefined
+            ? t('topbar.nothingToRedo')
+            : `${t('topbar.redo')}: ${describe(redoWhat)}`
+        }
+        onClick={redo}
+      >
+        {t('topbar.redo')}
+      </button>
+      <span className="spacer" />
       <div role="group" aria-label={t('topbar.language')} className="lang">
         {languages.map((language) => (
           <button
@@ -40,8 +75,8 @@ export function TopBar({ onAddFiles }: TopBarProps) {
       <button
         type="button"
         className="btn btn-primary"
-        disabled={!hasFiles || exporting}
-        onClick={() => void exportAll()}
+        disabled={!hasPages || exporting}
+        onClick={() => void startExport()}
       >
         {t('topbar.export')}
       </button>

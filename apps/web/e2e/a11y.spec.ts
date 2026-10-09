@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { fixture, openApp } from './helpers';
+import { expectThumbnail, fixture, openApp } from './helpers';
 
 const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -18,6 +18,6 @@ test('the workspace with files and an error has no accessibility violations', as
   await page
     .getByTestId('file-input')
     .setInputFiles([fixture('mixed-sizes-3p.pdf'), fixture('truncated.pdf')]);
-  await expect(page.getByRole('img', { name: /Primera página/ })).toBeVisible();
+  await expectThumbnail(page, 0);
   expect((await new AxeBuilder({ page }).withTags(tags).analyze()).violations).toEqual([]);
 });
