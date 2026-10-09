@@ -187,9 +187,14 @@ if (process.argv.includes('--write')) {
   writeFileSync(sbomFile, sbom);
   process.stdout.write(`Wrote ${outFile} and ${dataFile} (${String(rows.length)} packages)\n`);
 } else {
-  if (read(outFile) !== next || read(dataFile) !== data || read(sbomFile) !== sbom) {
+  const stale = [
+    [outFile, next],
+    [dataFile, data],
+    [sbomFile, sbom],
+  ].filter(([file, content]) => read(file) !== content);
+  if (stale.length > 0) {
     process.stderr.write(
-      'THIRD_PARTY_LICENSES.md, licenses.json or sbom.cdx.json is out of date. Run: node tools/check-licenses.mjs --write\n',
+      `Out of date: ${stale.map(([file]) => file.replace(`${root}/`, '')).join(', ')}. Run: node tools/check-licenses.mjs --write\n`,
     );
     process.exit(1);
   }
