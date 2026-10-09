@@ -1,44 +1,37 @@
 import { expose, transfer } from 'comlink';
-import { err, ok, pdfError } from '@vidopdf/core';
-import type { PdfRenderer } from '@vidopdf/core';
-import { createBrowserRenderer } from '@vidopdf/pdf-adapters/pdfjs';
+import {
+  canEncodeImage,
+  createBrowserRenderer,
+  encodeBlankImage,
+} from '@vidopdf/pdf-adapters/pdfjs';
+import { createZipBuilder } from '@vidopdf/pdf-adapters/zip';
 import type { RenderWorkerApi } from './api';
+import { createRenderCore } from './render-core';
 
-const documents = new Map<string, PdfRenderer<ImageBitmap>>();
-const running = new Map<number, AbortController>();
+const core = createRenderCore({
+  createRenderer: () =>
+    createBrowserRenderer({ workerSrc: '/pdfjs/pdf.worker.min.mjs', assetBaseUrl: '/pdfjs/' }),
+  createZip: createZipBuilder,
+  encodeBlank: encodeBlankImage,
+  canEncode: (format) => canEncodeImage(format),
+});
 
 const api: RenderWorkerApi = {
-  async open(sourceId, bytes) {
-    const renderer = createBrowserRenderer({
-      workerSrc: '/pdfjs/pdf.worker.min.mjs',
-      assetBaseUrl: '/pdfjs/',
-    });
-    const opened = await renderer.open(bytes);
-    if (opened.ok) documents.set(sourceId, renderer);
-    else await renderer.close();
-    return opened;
-  },
+  open: core.open,
+  cancel: core.cancel,
+  release: core.release,
+  outline: core.outline,
+  encodableFormats: core.encodableFormats,
+  cancelJob: core.cancelJob,
 
   async render(requestId, sourceId, pageIndex, targetWidth) {
-    const renderer = documents.get(sourceId);
-    if (renderer === undefined) return err(pdfError('internal', `unknown source ${sourceId}`));
-    const controller = new AbortController();
-    running.set(requestId, controller);
-    try {
-      const rendered = await renderer.renderPage(pageIndex, targetWidth, controller.signal);
-      return rendered.ok ? transfer(ok(rendered.value), [rendered.value.image]) : rendered;
-    } finally {
-      running.delete(requestId);
-    }
+    const rendered = await core.render(requestId, sourceId, pageIndex, targetWidth);
+    return rendered.ok ? transfer(rendered, [rendered.value.image]) : rendered;
   },
 
-  cancel(requestId) {
-    running.get(requestId)?.abort();
-  },
-
-  async release(sourceId) {
-    await documents.get(sourceId)?.close();
-    documents.delete(sourceId);
+  async exportImages(jobId, pages, options, baseName, onProgress) {
+    const result = await core.exportImages(jobId, pages, options, baseName, onProgress);
+    return result.ok ? transfer(result, [result.value.bytes.buffer]) : result;
   },
 };
 
