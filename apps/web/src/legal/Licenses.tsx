@@ -76,6 +76,7 @@ export function Licenses() {
             <tr>
               <th scope="col">{t('legal.licenses.name')}</th>
               <th scope="col">{t('legal.licenses.license')}</th>
+              <th scope="col">{t('legal.licenses.notice')}</th>
             </tr>
           </thead>
           <tbody>
@@ -83,6 +84,13 @@ export function Licenses() {
               <tr key={item.name}>
                 <th scope="row">{item.name}</th>
                 <td>{item.license}</td>
+                <td>
+                  {item.notices.map((notice) => (
+                    <a key={notice} href={notice} target="_blank" rel="noreferrer">
+                      {notice.split('/').pop()}
+                    </a>
+                  ))}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -93,6 +101,11 @@ export function Licenses() {
         <h3>{t('legal.licenses.texts')}</h3>
         <p>{t('legal.licenses.textsHint')}</p>
         <FullTexts />
+        <p>
+          <a href="/sbom.cdx.json" target="_blank" rel="noreferrer">
+            {t('legal.licenses.sbom')}
+          </a>
+        </p>
       </section>
     </>
   );

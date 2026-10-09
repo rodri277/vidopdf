@@ -105,7 +105,7 @@ Vidopdf is built with Claude Code from a written specification ([SPEC.md](SPEC.m
 
 ## Privacy and legal
 
-[PRIVACY.md](PRIVACY.md) (English and Spanish). The same texts, plus the legal notice, the terms and the licenses, are inside the app, linked in the footer.
+[PRIVACY.md](PRIVACY.md) (English and Spanish) and the [legal register](docs/LEGAL.md): what was checked, with sources, and what only the owner can close. The same texts, plus the legal notice, the terms and the licenses, are inside the app, linked in the footer.
 
 ## License
 

@@ -8,3 +8,5 @@ SPEC.md
 tools/fixtures
 tests/fixtures
 THIRD_PARTY_LICENSES.md
+apps/web/public/sbom.cdx.json
+apps/web/src/legal/licenses.json

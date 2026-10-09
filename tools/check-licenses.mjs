@@ -10,6 +10,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outFile = join(root, 'THIRD_PARTY_LICENSES.md');
 // The same list as data, for the Licenses page inside the app.
 const dataFile = join(root, 'apps/web/src/legal/licenses.json');
+// A software bill of materials (CycloneDX 1.5), served with the site and attached to releases.
+const sbomFile = join(root, 'apps/web/public/sbom.cdx.json');
 
 const ALLOWED = new Set([
   'MIT',
@@ -25,14 +27,26 @@ const ALLOWED = new Set([
 /** Approved exceptions: package name -> license. Each one needs an ADR. */
 const EXCEPTIONS = new Map([]);
 
-/** Pieces that ship inside pdfjs-dist under licenses of their own (see its wasm/ and standard_fonts/). */
+/**
+ * Pieces that ship inside pdfjs-dist under licenses of their own. Each one is served from
+ * /pdfjs/ together with its notice file, and the Licenses page links every notice.
+ */
 const BUNDLED_WITH_PDFJS = [
-  ['CMaps (Adobe)', 'BSD-3-Clause', 'cmaps/'],
-  ['OpenJPEG decoder', 'BSD-2-Clause', 'wasm/LICENSE_OPENJPEG'],
-  ['JBIG2 decoder (PDFium)', 'BSD-3-Clause', 'wasm/LICENSE_JBIG2'],
-  ['qcms color management', 'MIT', 'wasm/LICENSE_QCMS'],
-  ['Foxit standard fonts (PDFium)', 'BSD-3-Clause', 'standard_fonts/LICENSE_FOXIT'],
-  ['ICC profiles', 'CC0-1.0', 'iccs/'],
+  ['CMaps (Adobe)', 'BSD-3-Clause', ['/pdfjs/cmaps/LICENSE']],
+  ['OpenJPEG decoder', 'BSD-2-Clause', ['/pdfjs/wasm/LICENSE_OPENJPEG']],
+  ['JBIG2 decoder (PDFium)', 'BSD-3-Clause', ['/pdfjs/wasm/LICENSE_JBIG2']],
+  ['qcms color management', 'MIT', ['/pdfjs/wasm/LICENSE_QCMS']],
+  [
+    'pdf.js wrappers of the decoders above',
+    'Apache-2.0',
+    [
+      '/pdfjs/wasm/LICENSE_PDFJS_OPENJPEG',
+      '/pdfjs/wasm/LICENSE_PDFJS_JBIG2',
+      '/pdfjs/wasm/LICENSE_PDFJS_QCMS',
+    ],
+  ],
+  ['Foxit standard fonts (PDFium)', 'BSD-3-Clause', ['/pdfjs/standard_fonts/LICENSE_FOXIT']],
+  ['ICC profiles', 'CC0-1.0', ['/pdfjs/iccs/LICENSE']],
 ];
 
 function scan(start) {
@@ -85,12 +99,12 @@ function render() {
     '| --- | --- | --- |',
     ...rows.map((row) => `| ${row.name} | ${row.version} | ${row.license} |`),
     '',
-    '## Bundled with pdfjs-dist (served from `/pdfjs/`)',
+    '## Bundled with pdfjs-dist (served from `/pdfjs/`, each with its notice file)',
     '',
     '| Component | License | Notice |',
     '| --- | --- | --- |',
     ...BUNDLED_WITH_PDFJS.map(
-      ([name, license, notice]) => `| ${name} | ${license} | pdfjs-dist/${notice} |`,
+      ([name, license, notices]) => `| ${name} | ${license} | ${notices.join(', ')} |`,
     ),
     '',
     '## Full license texts',
@@ -120,11 +134,43 @@ const next = render();
 const data = `${JSON.stringify(
   {
     packages: rows.map(({ name, version, license }) => ({ name, version, license })),
-    bundled: BUNDLED_WITH_PDFJS.map(([name, license]) => ({ name, license })),
+    bundled: BUNDLED_WITH_PDFJS.map(([name, license, notices]) => ({ name, license, notices })),
   },
   null,
   2,
 )}\n`;
+const purl = (name, version) => `pkg:npm/${name.replace('@', '%40')}@${version}`;
+const licenseOf = (license) =>
+  / (OR|AND) /.test(license) ? { expression: license } : { license: { id: license } };
+
+/** Deterministic on purpose (no timestamp, no serial number), so the CI check can compare it. */
+const sbom = `${JSON.stringify(
+  {
+    bomFormat: 'CycloneDX',
+    specVersion: '1.5',
+    version: 1,
+    metadata: {
+      component: { type: 'application', name: 'vidopdf', licenses: [{ license: { id: 'MIT' } }] },
+    },
+    components: [
+      ...rows.map((row) => ({
+        type: 'library',
+        name: row.name,
+        version: row.version,
+        purl: purl(row.name, row.version),
+        licenses: [licenseOf(row.license)],
+      })),
+      ...BUNDLED_WITH_PDFJS.map(([name, license]) => ({
+        type: 'data',
+        name,
+        licenses: [licenseOf(license)],
+      })),
+    ],
+  },
+  null,
+  2,
+)}\n`;
+
 function read(file) {
   try {
     return readFileSync(file, 'utf8');
@@ -137,11 +183,18 @@ if (process.argv.includes('--write')) {
   writeFileSync(outFile, next);
   mkdirSync(dirname(dataFile), { recursive: true });
   writeFileSync(dataFile, data);
+  mkdirSync(dirname(sbomFile), { recursive: true });
+  writeFileSync(sbomFile, sbom);
   process.stdout.write(`Wrote ${outFile} and ${dataFile} (${String(rows.length)} packages)\n`);
 } else {
-  if (read(outFile) !== next || read(dataFile) !== data) {
+  const stale = [
+    [outFile, next],
+    [dataFile, data],
+    [sbomFile, sbom],
+  ].filter(([file, content]) => read(file) !== content);
+  if (stale.length > 0) {
     process.stderr.write(
-      'THIRD_PARTY_LICENSES.md or apps/web/src/legal/licenses.json is out of date. Run: node tools/check-licenses.mjs --write\n',
+      `Out of date: ${stale.map(([file]) => file.replace(`${root}/`, '')).join(', ')}. Run: node tools/check-licenses.mjs --write\n`,
     );
     process.exit(1);
   }

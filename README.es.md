@@ -105,7 +105,7 @@ Vidopdf se construye con Claude Code a partir de una especificación escrita ([S
 
 ## Privacidad y aspectos legales
 
-[PRIVACY.md](PRIVACY.md) (en inglés y en español). Los mismos textos, más el aviso legal, los términos y las licencias, están dentro de la app, enlazados en el pie.
+[PRIVACY.md](PRIVACY.md) (en inglés y en español) y el [registro legal](docs/LEGAL.md): qué se ha comprobado, con sus fuentes, y qué solo puede cerrar quien publica. Los mismos textos, más el aviso legal, los términos y las licencias, están dentro de la app, enlazados en el pie.
 
 ## Licencia
 
