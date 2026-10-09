@@ -254,6 +254,29 @@ for (let n = 0; n < 2; n++) {
 }
 await write('scanned-2p.pdf', scan);
 
+// A high-resolution scan: 1240 x 1754 pixels (A4 at 150 dpi). A picture this much larger than a
+// thumbnail makes pdf.js draw it through a scratch canvas, which is where it once failed in a worker.
+const largeScan = await newDoc('Fixture large scan');
+{
+  const picture = image(1240, 1754, (ctx, w, h) => {
+    ctx.fillStyle = '#f4f1ea';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#222';
+    let seed = 99;
+    for (let y = 100; y < h - 100; y += 34) {
+      for (let x = 100; x < w - 100;) {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        const word = 40 + (seed % 120);
+        ctx.fillRect(x, y, Math.min(word, w - 100 - x), 14);
+        x += word + 18;
+      }
+    }
+  });
+  const jpg = await largeScan.embedJpg(picture.toBuffer('image/jpeg', 50));
+  largeScan.addPage(A4).drawImage(jpg, { x: 0, y: 0, width: A4[0], height: A4[1] });
+}
+await write('scanned-large-1p.pdf', largeScan);
+
 const many = await newDoc('Fixture 300 pages');
 {
   const font = await many.embedFont(StandardFonts.Helvetica);
