@@ -2,6 +2,8 @@ import { PDFDocument, degrees } from '@cantoo/pdf-lib';
 import { err, ok, pdfError } from '@vidopdf/core';
 import type { ExportPage, PdfError, PdfInfo, PdfWriter, Result, WriteOptions } from '@vidopdf/core';
 
+const YIELD_EVERY = 8;
+
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -78,6 +80,8 @@ async function assemble(
     const failure = await addPage(output, docs.value, selection);
     if (failure !== undefined) return err(failure);
     options.onProgress?.(done + 1, pages.length);
+    // Let a cancel message in a worker's queue be seen without paying a timer per page.
+    if ((done + 1) % YIELD_EVERY === 0) await new Promise((resolve) => setTimeout(resolve, 0));
   }
   return ok(await output.save({ useObjectStreams: false }));
 }
