@@ -103,6 +103,65 @@ for (const label of ['BM-1', 'BM-2', 'BM-3']) await addPage(bookmarks, label, A4
 }
 await write('bookmarks-3p.pdf', bookmarks);
 
+// Nested bookmarks reached in every way a real file does: a direct destination, a named one,
+// a deeper level, and two entries that lead nowhere (no destination, a page that does not exist).
+const nested = await newDoc('Fixture nested bookmarks');
+for (let n = 1; n <= 6; n++) await addPage(nested, `NB-${String(n)}`, A4);
+{
+  const ctx = nested.context;
+  const pages = nested.getPages();
+  const dest = (i) => [pages[i].ref, PDFName.of('XYZ'), null, null, null];
+  nested.catalog.set(PDFName.of('Dests'), ctx.obj({ NamedA1: dest(1), NamedB: dest(3) }));
+  const entries = [
+    { title: 'Part A', level: 1, dest: dest(0) },
+    { title: 'A.1', level: 2, dest: PDFString.of('NamedA1') },
+    { title: 'A.2', level: 2, dest: dest(2) },
+    { title: 'Part B', level: 1, dest: PDFString.of('NamedB') },
+    { title: 'B.1', level: 2, dest: dest(4) },
+    { title: 'No destination', level: 1 },
+    { title: 'Missing page', level: 1, dest: [ctx.nextRef(), PDFName.of('Fit')] },
+    { title: 'Part C', level: 1, dest: dest(5) },
+  ];
+  const root = ctx.nextRef();
+  const refs = entries.map(() => ctx.nextRef());
+  const parentOf = (i) => {
+    for (let j = i - 1; j >= 0; j--) if (entries[j].level < entries[i].level) return refs[j];
+    return root;
+  };
+  const siblings = (i) => {
+    const parent = parentOf(i);
+    return entries.map((_, j) => j).filter((j) => parentOf(j) === parent);
+  };
+  entries.forEach((entry, i) => {
+    const sibs = siblings(i);
+    const position = sibs.indexOf(i);
+    const kids = entries.map((_, j) => j).filter((j) => parentOf(j) === refs[i]);
+    const dict = {
+      Title: PDFString.of(entry.title),
+      Parent: parentOf(i),
+      ...(entry.dest === undefined ? {} : { Dest: entry.dest }),
+      ...(position > 0 ? { Prev: refs[sibs[position - 1]] } : {}),
+      ...(position < sibs.length - 1 ? { Next: refs[sibs[position + 1]] } : {}),
+      ...(kids.length > 0
+        ? { First: refs[kids[0]], Last: refs[kids.at(-1)], Count: kids.length }
+        : {}),
+    };
+    ctx.assign(refs[i], ctx.obj(dict));
+  });
+  const top = entries.map((_, i) => i).filter((i) => parentOf(i) === root);
+  ctx.assign(
+    root,
+    ctx.obj({
+      Type: 'Outlines',
+      First: refs[top[0]],
+      Last: refs[top.at(-1)],
+      Count: entries.length,
+    }),
+  );
+  nested.catalog.set(PDFName.of('Outlines'), root);
+}
+await write('bookmarks-nested-6p.pdf', nested);
+
 const form = await newDoc('Fixture form');
 await addPage(form, 'FORM-1', A4);
 {
@@ -217,6 +276,40 @@ const many = await newDoc('Fixture 300 pages');
   }
 }
 await write('pages-300.pdf', many);
+
+if (process.argv.includes('--big')) {
+  // Large documents for benchmarks. Not committed (tests/fixtures/generated/big is ignored).
+  const bigDir = join(outDir, 'big');
+  mkdirSync(bigDir, { recursive: true });
+  const big = await newDoc('Fixture 1000 pages');
+  const font = await big.embedFont(StandardFonts.Helvetica);
+  for (let n = 1; n <= 1000; n++) {
+    const page = big.addPage(A4);
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width: A4[0],
+      height: A4[1],
+      color: rgb((n % 10) / 12 + 0.1, 0.9 - (n % 7) / 20, 0.95),
+    });
+    page.drawText(`PAGE ${String(n)}`, {
+      x: 60,
+      y: 420,
+      size: 48,
+      font,
+      color: rgb(0.05, 0.05, 0.2),
+    });
+    for (let line = 0; line < 30; line++) {
+      page.drawText(`Line ${String(line + 1)} of page ${String(n)}: lorem ipsum dolor sit amet`, {
+        x: 60,
+        y: 760 - line * 14,
+        size: 9,
+        font,
+      });
+    }
+  }
+  writeFileSync(join(bigDir, 'pages-1000.pdf'), await big.save({ useObjectStreams: false }));
+}
 
 writeFileSync(join(outDir, 'truncated.pdf'), aBytes.slice(0, Math.floor(aBytes.length / 2)));
 writeFileSync(join(outDir, 'zero-bytes.pdf'), new Uint8Array(0));

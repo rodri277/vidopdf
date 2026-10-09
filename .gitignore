@@ -11,3 +11,6 @@ test-results/
 .DS_Store
 .claude/settings.local.json
 .claude/worktrees/
+
+# Large benchmark fixtures, regenerated with `generate-fixtures.mjs --big`
+tests/fixtures/generated/big/

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ExportPage } from '@vidopdf/core';
 import { fixture } from './testing/fixtures';
 import { readPages } from './testing/pdf-text';
@@ -166,5 +166,20 @@ describe('assemble', () => {
     expect(() => {
       qpdfCheck(result.value);
     }).not.toThrow();
+  });
+
+  it('parses each source once, however many times pages are built from it', async () => {
+    const { PDFDocument } = await import('@cantoo/pdf-lib');
+    const fresh = new Map([['x', new Uint8Array(fixture('mixed-sizes-3p.pdf'))]]); // bytes this run has not seen
+    const load = vi.spyOn(PDFDocument, 'load');
+    try {
+      const page = [
+        { kind: 'original' as const, sourceId: 'x', pageIndex: 0, rotation: 0 as const },
+      ];
+      for (let run = 0; run < 5; run++) expect((await writer.assemble(fresh, page)).ok).toBe(true);
+      expect(load).toHaveBeenCalledTimes(1);
+    } finally {
+      load.mockRestore();
+    }
   });
 });
