@@ -9,7 +9,7 @@ import {
   emptyWorkspace,
   execute,
   insertBlankPage,
-  movePages,
+  movePagesToGap,
   redo,
   rotatePages,
   selectAll,
@@ -59,7 +59,7 @@ interface SessionState {
   deleteSelected: () => void;
   duplicateSelected: () => void;
   insertBlankAfterSelection: () => void;
-  moveSelected: (toIndex: number) => void;
+  moveSelectedToGap: (gap: number) => void;
   undo: () => void;
   redo: () => void;
   startExport: () => Promise<void>;
@@ -213,9 +213,9 @@ export const useSession = create<SessionState>((set, get) => {
       };
       run(insertBlankPage(workspace, page, after));
     },
-    moveSelected(toIndex) {
+    moveSelectedToGap(gap) {
       const { workspace } = get().session;
-      if (workspace.selection.length > 0) run(movePages(workspace, workspace.selection, toIndex));
+      if (workspace.selection.length > 0) run(movePagesToGap(workspace, workspace.selection, gap));
     },
 
     undo: () => {
