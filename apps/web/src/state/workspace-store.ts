@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { PageSelection, PdfErrorKind, RenderedPage } from '@vidopdf/core';
+import type { ExportPage, PdfErrorKind, RenderedPage } from '@vidopdf/core';
 import { browserFileIO } from '../adapters/file-io';
 import { exportWorker, renderWorker } from '../workers/clients';
 
@@ -93,8 +93,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     const { files } = get();
     if (files.length === 0) return;
     set({ status: { kind: 'exporting' } });
-    const pages: PageSelection[] = files.flatMap((file) =>
+    const pages: ExportPage[] = files.flatMap((file) =>
       Array.from({ length: file.pageCount }, (_, pageIndex) => ({
+        kind: 'original' as const,
         sourceId: file.id,
         pageIndex,
         rotation: 0 as const,

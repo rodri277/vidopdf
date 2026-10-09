@@ -1,6 +1,6 @@
 import { PDFDocument, degrees } from '@cantoo/pdf-lib';
 import { err, ok, pdfError } from '@vidopdf/core';
-import type { PageSelection, PdfError, PdfInfo, PdfWriter, Result } from '@vidopdf/core';
+import type { ExportPage, PdfError, PdfInfo, PdfWriter, Result, WriteOptions } from '@vidopdf/core';
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -42,11 +42,15 @@ async function loadSources(
   return ok(docs);
 }
 
-async function copyPage(
+async function addPage(
   output: PDFDocument,
   docs: ReadonlyMap<string, PDFDocument>,
-  selection: PageSelection,
+  selection: ExportPage,
 ): Promise<PdfError | undefined> {
+  if (selection.kind === 'blank') {
+    output.addPage([selection.width, selection.height]).setRotation(degrees(selection.rotation));
+    return undefined;
+  }
   const source = docs.get(selection.sourceId);
   if (source === undefined || selection.pageIndex >= source.getPageCount()) {
     return pdfError('internal', `page ${String(selection.pageIndex)} of ${selection.sourceId}`);
@@ -61,17 +65,19 @@ async function copyPage(
 
 async function assemble(
   sources: ReadonlyMap<string, Uint8Array>,
-  pages: readonly PageSelection[],
-  signal?: AbortSignal,
+  pages: readonly ExportPage[],
+  options: WriteOptions = {},
 ): Promise<Result<Uint8Array, PdfError>> {
   if (pages.length === 0) return err(pdfError('empty', 'no pages selected'));
-  const docs = await loadSources(sources, new Set(pages.map((p) => p.sourceId)));
+  const needed = new Set(pages.flatMap((p) => (p.kind === 'original' ? [p.sourceId] : [])));
+  const docs = await loadSources(sources, needed);
   if (!docs.ok) return docs;
   const output = await PDFDocument.create();
-  for (const selection of pages) {
-    if (signal?.aborted === true) return err(pdfError('cancelled'));
-    const failure = await copyPage(output, docs.value, selection);
+  for (const [done, selection] of pages.entries()) {
+    if (options.signal?.aborted === true) return err(pdfError('cancelled'));
+    const failure = await addPage(output, docs.value, selection);
     if (failure !== undefined) return err(failure);
+    options.onProgress?.(done + 1, pages.length);
   }
   return ok(await output.save({ useObjectStreams: false }));
 }

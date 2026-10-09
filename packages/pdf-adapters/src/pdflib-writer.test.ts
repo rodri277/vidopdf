@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { PageSelection } from '@vidopdf/core';
+import type { ExportPage } from '@vidopdf/core';
 import { fixture } from './testing/fixtures';
 import { readPages } from './testing/pdf-text';
 import { createPdfLibWriter } from './pdflib-writer';
@@ -44,11 +44,11 @@ describe('inspect', () => {
 });
 
 describe('assemble', () => {
-  const pages: PageSelection[] = [
-    { sourceId: 'b', pageIndex: 1, rotation: 0 },
-    { sourceId: 'a', pageIndex: 2, rotation: 0 },
-    { sourceId: 'c', pageIndex: 0, rotation: 90 },
-    { sourceId: 'a', pageIndex: 0, rotation: 0 },
+  const pages: ExportPage[] = [
+    { kind: 'original', sourceId: 'b', pageIndex: 1, rotation: 0 },
+    { kind: 'original', sourceId: 'a', pageIndex: 2, rotation: 0 },
+    { kind: 'original', sourceId: 'c', pageIndex: 0, rotation: 90 },
+    { kind: 'original', sourceId: 'a', pageIndex: 0, rotation: 0 },
   ];
 
   it('builds one PDF with the requested pages in the requested order', async () => {
@@ -94,13 +94,17 @@ describe('assemble', () => {
   });
 
   it('fails when a page index is out of range', async () => {
-    const result = await writer.assemble(sources, [{ sourceId: 'c', pageIndex: 5, rotation: 0 }]);
+    const result = await writer.assemble(sources, [
+      { kind: 'original', sourceId: 'c', pageIndex: 5, rotation: 0 },
+    ]);
     expect(result).toMatchObject({ ok: false, error: { kind: 'internal' } });
   });
 
   it('fails on an unknown source and on an empty selection', async () => {
     expect(
-      await writer.assemble(sources, [{ sourceId: 'zzz', pageIndex: 0, rotation: 0 }]),
+      await writer.assemble(sources, [
+        { kind: 'original', sourceId: 'zzz', pageIndex: 0, rotation: 0 },
+      ]),
     ).toMatchObject({
       ok: false,
     });
@@ -113,9 +117,42 @@ describe('assemble', () => {
   it('stops when the signal is aborted', async () => {
     const controller = new AbortController();
     controller.abort();
-    expect(await writer.assemble(sources, pages, controller.signal)).toMatchObject({
+    expect(await writer.assemble(sources, pages, { signal: controller.signal })).toMatchObject({
       ok: false,
       error: { kind: 'cancelled' },
     });
+  });
+
+  it('adds blank pages of the requested size and rotation', async () => {
+    const result = await writer.assemble(sources, [
+      { kind: 'original', sourceId: 'c', pageIndex: 0, rotation: 0 },
+      { kind: 'blank', width: 300, height: 200, rotation: 90 },
+    ]);
+    if (!result.ok) throw new Error('assemble failed');
+    const out = await readPages(result.value);
+    expect(out.map((p) => [p.text, p.width, p.height, p.rotate])).toEqual([
+      ['C-1', 612, 792, 0],
+      ['', 300, 200, 90],
+    ]);
+  });
+
+  it('can build a document made only of blank pages, without any source', async () => {
+    const result = await writer.assemble(new Map(), [
+      { kind: 'blank', width: 100, height: 100, rotation: 0 },
+    ]);
+    expect(result.ok).toBe(true);
+  });
+
+  it('reports progress after every page', async () => {
+    const calls: [number, number][] = [];
+    await writer.assemble(sources, pages, {
+      onProgress: (done, total) => calls.push([done, total]),
+    });
+    expect(calls).toEqual([
+      [1, 4],
+      [2, 4],
+      [3, 4],
+      [4, 4],
+    ]);
   });
 });

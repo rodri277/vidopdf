@@ -1,4 +1,4 @@
-import type { PageSelection, PdfError, PdfInfo, RenderedPage, Result } from '@vidopdf/core';
+import type { ExportPage, PdfError, PdfInfo, RenderedPage, Result } from '@vidopdf/core';
 
 /** Contract of the render worker (pdf.js). Only data crosses the boundary. */
 export interface RenderWorkerApi {
@@ -14,6 +14,6 @@ export interface ExportWorkerApi {
   inspect(bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>>;
   assemble(
     sources: readonly (readonly [string, Uint8Array])[],
-    pages: readonly PageSelection[],
+    pages: readonly ExportPage[],
   ): Promise<Result<Uint8Array, PdfError>>;
 }
