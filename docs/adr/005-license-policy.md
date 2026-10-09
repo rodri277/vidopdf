@@ -1,6 +1,6 @@
 # ADR 005: License policy
 
-- Status: Accepted for everything except the Liberation fonts exception, which is **Proposed** until Rodrigo approves it (see below)
+- Status: Accepted
 - Date: 2026-10-09
 - Phase: 0
 
@@ -16,11 +16,15 @@ Vidopdf is MIT licensed and ships third-party code and data to every visitor. SP
 - `quickjs-eval` (pdf.js' sandbox for scripts embedded in PDFs) is deliberately not served: Vidopdf never runs PDF scripts.
 - **Development-only exception:** `@axe-core/playwright` is MPL-2.0 (file-level copyleft). It is used only in tests, is not distributed and is not bundled, so no obligation attaches. The scan covers production dependencies only.
 
-### Liberation fonts (GPL-2.0 with font exception) — proposed exception
+### Liberation fonts (GPL-2.0 with font exception): not served
 
-pdf.js falls back to Liberation Sans when a PDF refers to a standard font (Helvetica, Arial) without embedding it. They are the only GPL piece. Served unmodified, as separate files, with their license text beside them (`/pdfjs/standard_fonts/LICENSE_LIBERATION`), they do not make Vidopdf a derivative work, and the font exception covers documents rendered with them.
+pdf.js falls back to Liberation Sans when a PDF refers to a standard font (Helvetica, Arial) without embedding it. They are the only GPL piece in pdf.js. SPEC offers two paths: approve them as an exception, served unmodified with their license beside them, or do not serve them and accept a worse fallback.
 
-Until Rodrigo decides, they are served (the spike renders correctly with them). The alternative is to remove `LiberationSans-*.ttf` from the copied assets and accept that pdf.js then falls back to the Foxit fonts, which render those PDFs less faithfully. The decision should be taken with screenshots of both cases, as SPEC asks, before v1.0.0.
+Decision (2026-10-09, delegated by Rodrigo): **do not serve them.** A side-by-side render of a PDF that uses non-embedded Helvetica, with and without `LiberationSans-*.ttf`, showed the same layout and only a different glyph shape: pdf.js falls back to the system sans-serif font instead. The cost of the alternative is that the look of such PDFs depends on the operating system's fonts; the benefit is that the project ships nothing GPL, which keeps the MIT story and the notices simple. Most real PDFs embed their fonts and are not affected.
+
+The build excludes `Liberation*` and `LICENSE_LIBERATION` from `/pdfjs/standard_fonts/` (`apps/web/vite.config.ts`). The server therefore answers 404 for those files and pdf.js logs a warning once.
+
+Revisit in Phase 3 with a corpus of PDFs that really use non-embedded fonts: if the fallback is measurably worse (text overflowing boxes, wrong metrics), approve the exception then, with captures, and add the font files back.
 
 ## Alternatives considered
 

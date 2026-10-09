@@ -27,5 +27,5 @@ All pdf.js data (`cmaps/`, `standard_fonts/`, `iccs/`, `wasm/`, `pdf.worker.min.
 
 ## Consequences
 
-- Text-heavy PDFs without embedded fonts use the Liberation fallback fonts (see ADR 005).
+- PDFs without embedded fonts fall back to the system sans-serif font (see ADR 005).
 - Upgrading pdfjs-dist needs the E2E render test to pass again; the options above are the likely points of breakage.

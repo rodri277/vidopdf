@@ -29,8 +29,11 @@ const pdfjsDir = dirname(
 
 /** Files of pdfjs-dist served from /pdfjs/ (same origin, so the CSP can stay strict). */
 const PDFJS_ASSETS = ['cmaps', 'standard_fonts', 'iccs', 'wasm'] as const;
-// quickjs-eval is pdf.js' sandbox for embedded JavaScript; Vidopdf never runs PDF scripts.
-const excluded = (path: string) => path.includes('quickjs-eval');
+// Not served on purpose:
+// - quickjs-eval is pdf.js' sandbox for embedded JavaScript; Vidopdf never runs PDF scripts.
+// - Liberation fonts are the only GPL piece in pdf.js (ADR 005); we ship none.
+const excluded = (path: string) =>
+  path.includes('quickjs-eval') || path.toLowerCase().includes('liberation');
 
 const MIME: Record<string, string> = {
   '.mjs': 'text/javascript',

@@ -30,11 +30,6 @@ const BUNDLED_WITH_PDFJS = [
   ['JBIG2 decoder (PDFium)', 'BSD-3-Clause', 'wasm/LICENSE_JBIG2'],
   ['qcms color management', 'MIT', 'wasm/LICENSE_QCMS'],
   ['Foxit standard fonts (PDFium)', 'BSD-3-Clause', 'standard_fonts/LICENSE_FOXIT'],
-  [
-    'Liberation fonts (GPL-2.0 with font exception), served unmodified and separate',
-    'GPL-2.0 WITH Font-exception-2.0',
-    'standard_fonts/LICENSE_LIBERATION',
-  ],
   ['ICC profiles', 'CC0-1.0', 'iccs/'],
 ];
 
