@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ExportPage } from '@vidopdf/core';
 import { createPdfLibWriter } from './pdflib-writer';
 import { fixture } from './testing/fixtures';
+import { qpdfCheck } from './testing/qpdf';
 import { differingPixels, renderPage } from './testing/render';
 
 const writer = createPdfLibWriter();
@@ -21,7 +22,7 @@ async function assembled(pages: readonly ExportPage[]): Promise<Uint8Array> {
 }
 
 describe('rendering of the exported PDF', () => {
-  it('matches the source pages after reordering across files', async () => {
+  it('three files reordered into one: qpdf accepts it and every page renders like its source', async () => {
     const order: ExportPage[] = [
       { kind: 'original', sourceId: 'i', pageIndex: 1, rotation: 0 },
       { kind: 'original', sourceId: 'b', pageIndex: 0, rotation: 0 },
@@ -29,6 +30,9 @@ describe('rendering of the exported PDF', () => {
       { kind: 'original', sourceId: 'a', pageIndex: 0, rotation: 0 },
     ];
     const out = await assembled(order);
+    expect(() => {
+      qpdfCheck(out);
+    }).not.toThrow();
     for (const [index, page] of order.entries()) {
       if (page.kind !== 'original') continue;
       const expected = await renderPage(
