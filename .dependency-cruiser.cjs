@@ -19,7 +19,12 @@ module.exports = {
       severity: 'error',
       from: { path: '^packages/pdf-adapters/src' },
       to: {
-        pathNot: ['^packages/pdf-adapters/src', '^packages/core/src', PDF_LIBS, '^@vidopdf/core(/|$)'],
+        pathNot: [
+          '^packages/pdf-adapters/src',
+          '^packages/core/src',
+          PDF_LIBS,
+          '^@vidopdf/core(/|$)',
+        ],
         dependencyTypesNot: ['core'],
       },
     },
