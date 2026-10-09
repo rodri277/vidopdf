@@ -4,7 +4,9 @@
 
 Un espacio de trabajo para PDFs que funciona al 100 % en tu navegador. Carga uno o varios PDFs, mira cada página como miniatura y únelos, divídelos, reordénalos, rótalos, comprímelos y protégelos. **Tus archivos no salen de tu dispositivo**: sin backend, sin analítica y sin peticiones a terceros, garantizado por una política CSP estricta y un test de extremo a extremo.
 
-> **Estado: Fase 2 terminada (v0.3.0).** Sobre el espacio de trabajo de páginas: dividir un documento de cuatro maneras (por rangos, cada N páginas, por marcadores, por tamaño máximo) en un ZIP, extraer páginas, convertir imágenes JPEG y PNG en páginas, y convertir páginas en imágenes PNG, JPEG o WebP. La compresión, las páginas legales dentro de la app y la publicación llegan en la Fase 3; consulta [SPEC.md](SPEC.md).
+![Carga de tres PDFs, rotar y borrar páginas, deshacer y por último comprimir y exportar](docs/media/demo.gif)
+
+> **Estado: v1.0.0.** Unir, dividir (de cuatro maneras), reordenar, rotar, eliminar, duplicar y extraer páginas; convertir imágenes JPEG y PNG en páginas y páginas en PNG, JPEG o WebP; **comprimir** las imágenes de dentro de un PDF con tres perfiles y ver el peso real antes de guardar; todo con deshacer y rehacer, atajos de teclado y una interfaz en español e inglés. Privacidad, aviso legal, términos y licencias son páginas dentro de la app. Lo que viene después (contraseña, formularios, firma, uso sin conexión) está en [SPEC.md](SPEC.md).
 
 ## Teclado
 
@@ -28,17 +30,19 @@ Necesita Node 24 (`fnm use`), pnpm 12 y, para los tests, `qpdf`.
 pnpm install
 pnpm dev          # http://localhost:5173
 pnpm test         # unitarios, de propiedades, PDFs reales y reglas de arquitectura
-pnpm e2e          # Playwright: privacidad, accesibilidad, archivos hostiles (Chromium)
+pnpm e2e          # Playwright: privacidad, accesibilidad, archivos hostiles (Chromium; e2e:webkit para WebKit)
 pnpm build        # bundle de producción en apps/web/dist
+pnpm bench        # benchmarks de rendimiento y memoria (unos 2 minutos)
+pnpm lighthouse   # Lighthouse sobre el sitio compilado; falla por debajo de 95
 ```
 
 ## Cómo está construido
 
 Puertos y adaptadores: un `core` sin DOM, adaptadores sobre `pdfjs-dist` y `@cantoo/pdf-lib`, y una app React cuyo trabajo pesado corre en Web Workers. Las reglas de capas rompen el build si se incumplen ([ADR 003](docs/adr/003-layered-architecture.md)). Todas las decisiones están en [docs/adr](docs/adr/README.md).
 
-## Medido hasta ahora
+## Medido
 
-2026-10-09, versión 0.3.0, portátil Apple M4, Chromium sin interfaz (y WebKit para los E2E). Se reproduce con `pnpm bench`; la tabla completa con todos los números está en [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
+2026-10-09, versión 1.0.0, portátil Apple M4, Chromium sin interfaz (y WebKit para los E2E). Se reproduce con `pnpm bench`; la tabla completa con todos los números está en [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
 
 | Métrica                                                | Presupuesto (SPEC)                    | Medido                                                                                                                                             |
 | ------------------------------------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -48,12 +52,28 @@ Puertos y adaptadores: un `core` sin DOM, adaptadores sobre `pdfjs-dist` y `@can
 | Primeras miniaturas de un documento de 1000 páginas    | 1 s para 300 páginas                  | de 0,3 a 0,4 s                                                                                                                                     |
 | Memoria, 500 páginas de texto / 500 escaneadas (97 MB) | medida y documentada                  | 0,5 GB / 1,1 GB, pico de 1,3 GB al exportar ([ADR 015](docs/adr/015-benchmarks-and-memory.md))                                                     |
 | Aviso por demasiado PDF cargado                        | ajustado con datos                    | 150 MB (antes 250 MB)                                                                                                                              |
-| JavaScript inicial                                     | 150 kB gzip                           | 105,6 kB                                                                                                                                           |
-| Cobertura de `packages/core`                           | 90 % de líneas                        | 99,5 %                                                                                                                                             |
-| Tests                                                  |                                       | 162 del núcleo, 101 de adaptadores, 136 de la web, 9 reglas de arquitectura, 9 de utilidades de benchmark, 70 E2E en Chromium y otros 70 en WebKit |
-| Lighthouse                                             | de 95 a 100                           | sin medir todavía (Fase 3)                                                                                                                         |
+| JavaScript inicial                                     | 150 kB gzip                           | 107,3 kB                                                                                                                                           |
+| Cobertura de `packages/core`                           | 90 % de líneas                        | 99,6 %                                                                                                                                             |
+| Tests                                                  |                                       | 191 del núcleo, 114 de adaptadores, 146 de la web, 9 reglas de arquitectura, 9 de utilidades de benchmark, 85 E2E en Chromium y otros 85 en WebKit |
+| Lighthouse (escritorio, build local)                   | 95 a 100                              | 100 / 100 / 100 / 100 en el espacio de trabajo y en una página legal ([benchmarks/LIGHTHOUSE.md](benchmarks/LIGHTHOUSE.md))                        |
+| Compresión, reducción mediana en PDFs con fotografías  | 40 % en «equilibrado»                 | 96 % (corpus sintético, ver abajo)                                                                                                                 |
+| Comprimir 500 páginas escaneadas (165 MB)              | medido y documentado                  | un 42 % menos en 19 s, pico del renderizador de 1,8 GB                                                                                             |
+
+## Compresión, medida
+
+El método y todos los números están en el [ADR 004](docs/adr/004-compression-strategy.md) y en [benchmarks/COMPRESSION.md](benchmarks/COMPRESSION.md); se repite con `pnpm --filter @vidopdf/benchmarks measure:compression`. Cada imagen se reduce a la resolución a la que la página la dibuja de verdad (se lee del contenido de la página) y se vuelve a codificar como JPEG si eso ahorra al menos una décima parte. El resultado nunca pesa más que el original.
+
+| Perfil      | Objetivo | Reducción mediana en PDFs con fotografías | Peor cambio visible medido                                           |
+| ----------- | -------- | ----------------------------------------- | -------------------------------------------------------------------- |
+| Pantalla    | 96 ppp   | 98,8 %                                    | el 6,5 % de los píxeles de un escaneo con ruido difiere en más de 24 |
+| Equilibrado | 150 ppp  | 96 %                                      | 2,9 % (el mismo escaneo); menos del 0,1 % en fotografías             |
+| Impresión   | 220 ppp  | 86,3 %                                    | 3,1 % (el mismo escaneo); alrededor del 0,1 % en fotografías         |
+
+**Lo que esto no demuestra.** El corpus no tiene fotografías reales: están dibujadas a partir de semillas fijas (degradados, manchas, trazos y ruido), porque no se descargó ningún archivo. Se comportan como fotografías ante el JPEG, pero las reales pueden comprimirse de otra forma. Parte del gran ahorro viene de imágenes dibujadas a entre 300 y 1300 ppp que se bajan a la resolución del perfil; un PDF cuyas imágenes ya están a 150 ppp y son ligeras no gana nada en «equilibrado», y el diálogo lo dice. El texto de las páginas escaneadas se ablanda en «pantalla» y «equilibrado»; «impresión» es la opción para un documento que se leerá de cerca.
 
 ## Limitaciones conocidas
+
+- **La compresión** solo toca imágenes JPEG y sin pérdida en RGB o gris de 8 bits, sin máscaras ni máscaras suaves. Deja como están el color CMYK, indexado y calibrado, las imágenes con canal alfa, el dibujo de líneas con pocos colores (el JPEG lo emborronaría), las imágenes diminutas y los JPEG que ya son ligeros. No toca fuentes ni estructura, y las imágenes nuevas son JPEG: la pérdida es permanente en el archivo nuevo (tu original nunca se modifica). El códec de imágenes es el lienzo del navegador, probado en Chromium y WebKit; Firefox no se ha probado.
 
 - Los PDFs cifrados, incluidos los que solo tienen restricciones de propietario, se rechazan en esta versión.
 - **Unir usa `copyPages` de pdf-lib, que pierde parte de la estructura** (fijado por `merge-limits.test.ts`):
@@ -65,18 +85,26 @@ Puertos y adaptadores: un `core` sin DOM, adaptadores sobre `pdfjs-dist` y `@can
 - **Imágenes de entrada:** solo JPEG y PNG (WebP y GIF se rechazan). Las orientaciones EXIF con espejo (2, 4, 5, 7) siguen la tabla estándar pero no se han comprobado con archivos de cámara.
 - **Imágenes de salida:** WebP depende del navegador (Safari en macOS no puede escribirlo y la opción se apaga con una explicación). Las páginas demasiado grandes para el lienzo se dibujan con menos resolución y se avisa. El ZIP se construye en memoria.
 - **Memoria:** unos 6,5 MB de memoria del navegador por cada MB de PDF escaneado; la aplicación avisa a los 150 MB cargados.
-- Los enlaces externos y la capa de texto se conservan, y las imágenes se copian byte a byte (en esta versión no se recomprimen).
+- Los enlaces externos y la capa de texto se conservan. Las imágenes se copian byte a byte salvo que pidas comprimir.
+- **Accesibilidad:** es un objetivo (WCAG 2.2 AA), comprobado con axe en cada pantalla y a mano con el teclado, pero no ha habido una auditoría externa, así que no se afirma conformidad.
+- **Los textos legales** (privacidad, aviso legal, términos) los ha escrito la persona desarrolladora con Claude Code, no un abogado. El proyecto funciona bajo el alias vidotho; consulta el aviso legal en la app.
 
 ## Cómo se hizo con IA
 
-Vidopdf se construye con Claude Code a partir de una especificación escrita ([SPEC.md](SPEC.md)). Claude Code escribe código, tests y ADRs fase a fase; Rodrigo revisa cada plan antes de empezar y el resultado al terminar. Esta sección recoge qué se pidió, qué se generó, qué se revisó y qué se corrigió, y se actualiza al cerrar cada fase.
+Vidopdf se construye con Claude Code a partir de una especificación escrita ([SPEC.md](SPEC.md)). Claude Code escribe código, tests y ADRs fase a fase; vidotho revisa cada plan antes de empezar y el resultado al terminar. Esta sección recoge qué se pidió, qué se generó, qué se revisó y qué se corrigió, y se actualiza al cerrar cada fase.
 
 **Fase 0.** Claude Code montó el monorepo, las reglas de capas con sus tests de prueba, la CI, la CSP estricta y los dos spikes (pdf.js en un worker y unir con pdf-lib). Correcciones por el camino, descubiertas ejecutando y no suponiendo: pdf.js 6 ya no tiene `isEvalSupported`; pdf.js lee `document` en sitios que fallan dentro de un worker (ADR 009); un `<select>` nativo hace que WebKit escriba un aviso CSP falso, así que el selector de idioma es un grupo de botones.
 
-**Fase 1.** Claude Code propuso el plan en seis bloques y Rodrigo lo aprobó, delegando las decisiones abiertas («lo que sea mejor para el usuario y para el desarrollo»). Cada bloque fue un pull request que tenía que pasar la CI antes de fusionarse. Decisiones que tomó Claude por su cuenta, para que se puedan revisar: el workspace como referencias a páginas inmutables editadas con comandos ([ADR 010](docs/adr/010-workspace-as-a-plan-of-commands.md)); un planificador puro para renderizar miniaturas ([ADR 011](docs/adr/011-thumbnail-pipeline.md)); virtualizar la rejilla con aritmética en vez de `@tanstack/react-virtual`, y reordenar con teclado con Alt + flechas en vez del sensor de teclado de dnd-kit ([ADR 012](docs/adr/012-grid-virtualization-and-reordering.md)). Descubierto ejecutando y no pensando: los avisos de progreso de pdf.js pueden llegar después del resultado (una carrera que dejaba la exportación colgada), el primer borrador de las reglas de capas no veía los nombres de paquetes del workspace, y una tolerancia del 0,1 % de píxeles era demasiado laxa para notar un cambio de texto, así que ahora es del 0,01 %. Lo que _no_ se hizo: las muestras reales de dominio público que menciona la SPEC; las fixtures generadas por código las sustituyen.
+**Fase 1.** Claude Code propuso el plan en seis bloques y vidotho lo aprobó, delegando las decisiones abiertas («lo que sea mejor para el usuario y para el desarrollo»). Cada bloque fue un pull request que tenía que pasar la CI antes de fusionarse. Decisiones que tomó Claude por su cuenta, para que se puedan revisar: el workspace como referencias a páginas inmutables editadas con comandos ([ADR 010](docs/adr/010-workspace-as-a-plan-of-commands.md)); un planificador puro para renderizar miniaturas ([ADR 011](docs/adr/011-thumbnail-pipeline.md)); virtualizar la rejilla con aritmética en vez de `@tanstack/react-virtual`, y reordenar con teclado con Alt + flechas en vez del sensor de teclado de dnd-kit ([ADR 012](docs/adr/012-grid-virtualization-and-reordering.md)). Descubierto ejecutando y no pensando: los avisos de progreso de pdf.js pueden llegar después del resultado (una carrera que dejaba la exportación colgada), el primer borrador de las reglas de capas no veía los nombres de paquetes del workspace, y una tolerancia del 0,1 % de píxeles era demasiado laxa para notar un cambio de texto, así que ahora es del 0,01 %. Lo que _no_ se hizo: las muestras reales de dominio público que menciona la SPEC; las fixtures generadas por código las sustituyen.
 
-**Fase 2.** El mismo ciclo: plan primero, aprobación y cinco bloques como pull requests (lógica pura en `core`, adaptadores, workers y estado, interfaz, benchmarks), cada uno fusionado solo con la CI en verde. Rodrigo volvió a delegar las decisiones abiertas. Tomadas por Claude y anotadas para revisarlas: dividir trabaja sobre el espacio de trabajo y no sobre los archivos ([ADR 013](docs/adr/013-splitting.md)); las imágenes se convierten en fuentes PDF de una página al importarlas y se dibujan sobre papel blanco, con el giro de la rejilla, al exportarlas ([ADR 014](docs/adr/014-pictures-in-and-out.md)); el aviso de memoria pasó de 250 a 150 MB con las mediciones como motivo ([ADR 015](docs/adr/015-benchmarks-and-memory.md)). **Descubierto midiendo o con un navegador real, no pensando:** los PDFs escaneados no mostraban miniaturas (pdf.js necesitaba un lienzo que no puede crear en un worker; solo lo dispara un escaneo suficientemente grande), exportar 500 páginas escaneadas como imágenes usaba 4,8 GB (ahora 1,4 GB), la carga mantenía copias de más del archivo, y la comprobación de formatos de imagen preguntaba a un lienzo sin contexto, así que todos los formatos parecían no soportados y el panel entraba en bucle. **No hecho o sin verificar:** los PDFs reales de dominio público de la SPEC (las fixtures generadas por código los sustituyen), la memoria en Safari y Firefox, y una medición en un portátil de gama media real (la columna de 4x es solo un sustituto).
+**Fase 2.** El mismo ciclo: plan primero, aprobación y cinco bloques como pull requests (lógica pura en `core`, adaptadores, workers y estado, interfaz, benchmarks), cada uno fusionado solo con la CI en verde. vidotho volvió a delegar las decisiones abiertas. Tomadas por Claude y anotadas para revisarlas: dividir trabaja sobre el espacio de trabajo y no sobre los archivos ([ADR 013](docs/adr/013-splitting.md)); las imágenes se convierten en fuentes PDF de una página al importarlas y se dibujan sobre papel blanco, con el giro de la rejilla, al exportarlas ([ADR 014](docs/adr/014-pictures-in-and-out.md)); el aviso de memoria pasó de 250 a 150 MB con las mediciones como motivo ([ADR 015](docs/adr/015-benchmarks-and-memory.md)). **Descubierto midiendo o con un navegador real, no pensando:** los PDFs escaneados no mostraban miniaturas (pdf.js necesitaba un lienzo que no puede crear en un worker; solo lo dispara un escaneo suficientemente grande), exportar 500 páginas escaneadas como imágenes usaba 4,8 GB (ahora 1,4 GB), la carga mantenía copias de más del archivo, y la comprobación de formatos de imagen preguntaba a un lienzo sin contexto, así que todos los formatos parecían no soportados y el panel entraba en bucle. **No hecho o sin verificar:** los PDFs reales de dominio público de la SPEC (las fixtures generadas por código los sustituyen), la memoria en Safari y Firefox, y una medición en un portátil de gama media real (la columna de 4x es solo un sustituto).
+
+**Fase 3.** El mismo ciclo otra vez (plan, aprobación, bloques como pull requests, CI en verde antes de fusionar). Lo primero fue un spike, porque la SPEC solo admite software AGPL (MuPDF) como alternativa si la vía JavaScript no alcanza el 40 %: lo supera de sobra ([ADR 004](docs/adr/004-compression-strategy.md)), así que nunca hizo falta preguntar. Tomadas por Claude y anotadas para revisarlas: reducir a la resolución a la que se dibuja cada imagen, leída del contenido de la página (no adivinada por su tamaño); no recomprimir lo que podría dañarse (dibujo de líneas, máscaras, color poco común); dejar apagados los flujos de objetos (ahorraban de 0 a 1,5 %). **Descubierto midiendo:** recodificar sin reducir solo ahorra un 25 % en «impresión»; el escaneo de 150 ppp que ya tenían los benchmarks no tiene nada que ganar en «equilibrado» (una primera ejecución dio 0 % hasta que se añadió un escaneo de 200 ppp). **No hecho o sin verificar:** fotografías reales (el corpus es sintético), Firefox, la revisión de un abogado de las páginas legales y la búsqueda de marca que pide la SPEC en EUIPO y OEPM (la tiene que hacer quien publica).
+
+## Privacidad y aspectos legales
+
+[PRIVACY.md](PRIVACY.md) (en inglés y en español). Los mismos textos, más el aviso legal, los términos y las licencias, están dentro de la app, enlazados en el pie.
 
 ## Licencia
 
-MIT. Avisos de terceros: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+MIT. Avisos de terceros: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md), también visibles en la app.
