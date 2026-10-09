@@ -196,7 +196,7 @@ function Preview({ stale }: { stale: boolean }) {
   }
   if (split.phase !== 'ready' || stale)
     return kind === 'size' ? <p className="muted">{t('export.split.needsMeasure')}</p> : null;
-  const plan = buildSplitPlan(split.groups, suggestedBaseName(workspace));
+  const plan = buildSplitPlan(workspace, split.groups, suggestedBaseName(workspace));
   return (
     <div className="preview-list">
       <h3>{t('export.split.previewTitle', { count: plan.outputs.length })}</h3>

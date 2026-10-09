@@ -46,14 +46,18 @@ export {
   exportPageCount,
   outputCompression,
   outputPageCount,
+  outputProtection,
   suggestedBaseName,
 } from './export/export-plan';
 export type {
   AssembleStep,
   CompressStep,
+  Decorations,
+  ExportOptions,
   ExportOutput,
   ExportPlan,
   ExportStep,
+  ProtectStep,
 } from './export/export-plan';
 export { MAX_CANVAS_PIXELS, MEMORY_WARNING_BYTES } from './limits';
 export { paddedNumber, safeFileName, stripExtension, uniqueNames } from './names';
@@ -79,3 +83,17 @@ export type {
   RenderedPage,
   WriteOptions,
 } from './ports';
+export * from './stamps';
+export * from './security';
+export * from './bookmarks';
+export * from './document';
+export * from './pages';
+export type { FormMode, FormValue, FormValues } from './forms';
+export {
+  cropPages,
+  placeOverlay,
+  removeOverlay,
+  replaceEdits,
+  setFields,
+} from './history/field-commands';
+export type { EditsCommand, FieldCommand } from './history/field-commands';

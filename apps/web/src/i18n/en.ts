@@ -23,6 +23,12 @@ export const en: Widen<typeof es> = {
     move: 'move pages',
     rotate: 'rotate pages',
     duplicate: 'duplicate pages',
+    stamps: 'stamps and numbering',
+    metadata: 'metadata',
+    bookmarks: 'bookmarks',
+    crop: 'crop',
+    signature: 'signature',
+    forms: 'form',
     insertBlank: 'insert blank page',
   },
   grid: {

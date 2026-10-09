@@ -381,6 +381,10 @@ export function createSessionStore(deps: SessionDeps) {
     }
 
     const baseName = () => suggestedBaseName(workspace());
+    const compressionOption = () => {
+      const preset = presetOf(get().compression);
+      return preset === undefined ? {} : { compression: preset };
+    };
 
     return {
       session: createSession(emptyWorkspace),
@@ -576,13 +580,13 @@ export function createSessionStore(deps: SessionDeps) {
         if (workspace().pages.length > 0)
           await runPlan(
             'pdf',
-            buildExportPlan(workspace(), baseName(), presetOf(get().compression)),
+            buildExportPlan(workspace(), { base: baseName(), ...compressionOption() }),
             `${baseName()}.zip`,
           );
       },
 
       async extractSelection() {
-        const plan = buildExtractPlan(workspace(), baseName(), presetOf(get().compression));
+        const plan = buildExtractPlan(workspace(), { base: baseName(), ...compressionOption() });
         if (plan !== undefined) await runPlan('extract', plan, `${baseName()}_extract.zip`);
       },
 
@@ -591,7 +595,7 @@ export function createSessionStore(deps: SessionDeps) {
         if (split.phase !== 'ready') return;
         await runPlan(
           'split',
-          buildSplitPlan(split.groups, baseName(), presetOf(get().compression)),
+          buildSplitPlan(workspace(), split.groups, baseName(), compressionOption()),
           `${baseName()}_split.zip`,
         );
       },

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { blank, source, workspaceOf } from '../test-helpers';
 import { rotatePages } from '../history/command';
+import { NO_METADATA } from '../document/metadata';
+import { ALL_ALLOWED } from '../security/permissions';
+import { presets } from '../stamps/stamp';
 import { selectOnly, toggleSelection } from '../workspace/selection';
 import { splitEveryN, splitByRanges, splitByBookmarks, bookmarkKey } from '../split';
 import {
@@ -9,6 +12,7 @@ import {
   buildSplitPlan,
   exportPageCount,
   outputCompression,
+  outputProtection,
   outputPageCount,
   suggestedBaseName,
 } from './export-plan';
@@ -46,7 +50,9 @@ describe('buildExportPlan', () => {
   });
 
   it('cleans a name it is given', () => {
-    expect(buildExportPlan(workspaceOf(1), '../evil/name').outputs[0]?.name).toBe('_evil_name.pdf');
+    expect(buildExportPlan(workspaceOf(1), { base: '../evil/name' }).outputs[0]?.name).toBe(
+      '_evil_name.pdf',
+    );
   });
 });
 
@@ -70,7 +76,11 @@ describe('buildSplitPlan', () => {
   const groups = (result: ReturnType<typeof splitEveryN>) => (result.ok ? result.value : []);
 
   it('makes one numbered file per part, padded to the number of files', () => {
-    const plan = buildSplitPlan(groups(splitEveryN([...workspaceOf(25).pages], 2)), 'report');
+    const plan = buildSplitPlan(
+      workspaceOf(25),
+      groups(splitEveryN([...workspaceOf(25).pages], 2)),
+      'report',
+    );
     expect(plan.outputs).toHaveLength(13);
     expect(plan.outputs[0]?.name).toBe('report_01.pdf');
     expect(plan.outputs[12]?.name).toBe('report_13.pdf');
@@ -86,7 +96,7 @@ describe('buildSplitPlan', () => {
       ],
       'group',
     );
-    const plan = buildSplitPlan(groups(result), 'doc');
+    const plan = buildSplitPlan(workspaceOf(25), groups(result), 'doc');
     expect(plan.outputs.map((o) => o.name)).toEqual(['doc_p1-3.pdf', 'doc_p6.pdf', 'doc_rest.pdf']);
   });
 
@@ -95,7 +105,7 @@ describe('buildSplitPlan', () => {
       [bookmarkKey('s1', 0), 'Intro: "why"'],
       [bookmarkKey('s1', 2), 'intro: "why"'],
     ]);
-    const plan = buildSplitPlan(groups(splitByBookmarks(pages, marks)), 'book');
+    const plan = buildSplitPlan(workspaceOf(25), groups(splitByBookmarks(pages, marks)), 'book');
     expect(plan.outputs.map((o) => o.name)).toEqual([
       'book - Intro_ _why_.pdf',
       'book - intro_ _why_ (2).pdf',
@@ -103,9 +113,9 @@ describe('buildSplitPlan', () => {
   });
 
   it('falls back to the plain name when the base is empty', () => {
-    expect(buildSplitPlan(groups(splitEveryN(pages, 7)), '').outputs[0]?.name).toBe(
-      'vidopdf_1.pdf',
-    );
+    expect(
+      buildSplitPlan(workspaceOf(25), groups(splitEveryN(pages, 7)), '').outputs[0]?.name,
+    ).toBe('vidopdf_1.pdf');
   });
 });
 
@@ -115,7 +125,7 @@ describe('compression in a plan', () => {
     expect(plain.outputs[0]?.steps.map((step) => step.kind)).toEqual(['assemble']);
     expect(outputCompression(plain.outputs[0] ?? { name: '', steps: [] })).toBeUndefined();
 
-    const packed = buildExportPlan(workspaceOf(3), 'doc', 'balanced');
+    const packed = buildExportPlan(workspaceOf(3), { base: 'doc', compression: 'balanced' });
     expect(packed.outputs[0]?.steps.map((step) => step.kind)).toEqual(['assemble', 'compress']);
     expect(outputCompression(packed.outputs[0] ?? { name: '', steps: [] })).toBe('balanced');
     expect(exportPageCount(packed)).toBe(3);
@@ -123,11 +133,89 @@ describe('compression in a plan', () => {
 
   it('applies to extracts and to every part of a split', () => {
     const ws = selectOnly(workspaceOf(3), workspaceOf(3).pages[1]?.id ?? '');
-    const extract = buildExtractPlan(ws, 'doc', 'screen');
+    const extract = buildExtractPlan(ws, { base: 'doc', compression: 'screen' });
     expect(outputCompression(extract?.outputs[0] ?? { name: '', steps: [] })).toBe('screen');
     const split = splitEveryN([...workspaceOf(4).pages], 2);
-    const parts = buildSplitPlan(split.ok ? split.value : [], 'doc', 'print');
+    const parts = buildSplitPlan(workspaceOf(4), split.ok ? split.value : [], 'doc', {
+      compression: 'print',
+    });
     expect(parts.outputs.map(outputCompression)).toEqual(['print', 'print']);
     expect(exportPageCount(parts)).toBe(4);
+  });
+});
+
+describe('what the plan carries for version 2', () => {
+  const ws = {
+    ...workspaceOf(4),
+    stamps: [presets.pageNumber('n')],
+    metadata: { ...NO_METADATA, title: 'Report' },
+  };
+  const assemble = (output: ExportOutput | undefined) => {
+    const step = output?.steps[0];
+    if (step?.kind !== 'assemble') throw new Error('no assemble step');
+    return step;
+  };
+
+  it('puts the stamps, the metadata and the file name in the assemble step of every output', () => {
+    const plan = buildExportPlan(ws, { base: 'doc', date: '2026-10-09' });
+    const step = assemble(plan.outputs[0]);
+    expect(step.decorations).toMatchObject({
+      fileName: 'doc.pdf',
+      date: '2026-10-09',
+      metadata: { title: 'Report' },
+      formMode: 'keep',
+    });
+    expect(step.decorations.stamps).toHaveLength(1);
+  });
+
+  it('gives each file of a split its own name for {file}', () => {
+    const split = splitEveryN([...ws.pages], 2);
+    const plan = buildSplitPlan(ws, split.ok ? split.value : [], 'doc');
+    expect(plan.outputs.map((o) => assemble(o).decorations.fileName)).toEqual([
+      'doc_1.pdf',
+      'doc_2.pdf',
+    ]);
+  });
+
+  it('resolves the bookmarks against the pages of each output, so a split keeps only its own', () => {
+    const tree = [
+      { id: 'a', title: 'First', pageId: 'p0', children: [] },
+      { id: 'b', title: 'Third', pageId: 'p2', children: [] },
+    ];
+    const split = splitEveryN([...ws.pages], 2);
+    const plan = buildSplitPlan(ws, split.ok ? split.value : [], 'doc', { bookmarks: tree });
+    expect(
+      plan.outputs.map((o) => assemble(o).decorations.bookmarks.map((b) => [b.title, b.pageIndex])),
+    ).toEqual([[['First', 0]], [['Third', 0]]]);
+  });
+
+  it('attaches the crop and the signatures of a page to that page only', () => {
+    const edited = {
+      ...ws,
+      edits: {
+        p1: {
+          crop: { top: 0.1, right: 0, bottom: 0, left: 0 },
+          overlays: [{ id: 'o', assetId: 'sig', x: 0.1, y: 0.1, width: 0.2, aspect: 0.5 }],
+        },
+      },
+    };
+    const pages = assemble(buildExportPlan(edited).outputs[0]).pages;
+    expect(pages[0]).not.toHaveProperty('crop');
+    expect(pages[1]).toMatchObject({ crop: { top: 0.1 }, overlays: [{ id: 'o' }] });
+    expect(pages[2]).not.toHaveProperty('overlays');
+  });
+
+  it('adds the protection last, after compression, and leaves it out unless asked', () => {
+    expect(
+      outputProtection(buildExportPlan(ws).outputs[0] ?? { name: '', steps: [] }),
+    ).toBeUndefined();
+    const plan = buildExportPlan(ws, {
+      compression: 'balanced',
+      protect: { userPassword: 'open', permissions: ALL_ALLOWED },
+    });
+    const kinds = plan.outputs[0]?.steps.map((step) => step.kind);
+    expect(kinds).toEqual(['assemble', 'compress', 'protect']);
+    expect(outputProtection(plan.outputs[0] ?? { name: '', steps: [] })?.userPassword).toBe('open');
+    expect(exportPageCount(plan)).toBe(4);
   });
 });

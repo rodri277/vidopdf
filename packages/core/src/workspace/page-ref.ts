@@ -1,3 +1,6 @@
+import type { Margins } from '../pages/crop';
+import type { Overlay, PageEdits } from '../pages/edits';
+
 export type Rotation = 0 | 90 | 180 | 270;
 
 /** A page that comes from a loaded file. `sourceIndex` is zero-based inside that file. */
@@ -31,6 +34,9 @@ export type ExportPage =
       readonly sourceId: string;
       readonly pageIndex: number;
       readonly rotation: Rotation;
+      /** Cut away as the reader sees the page. */
+      readonly crop?: Margins;
+      readonly overlays?: readonly Overlay[];
     }
   | {
       readonly kind: 'blank';
@@ -45,13 +51,15 @@ export function rotate(current: Rotation, degrees: number): Rotation {
   return normalized as Rotation;
 }
 
-export function toExportPage(page: PageRef): ExportPage {
+export function toExportPage(page: PageRef, edits?: PageEdits): ExportPage {
   return page.kind === 'original'
     ? {
         kind: 'original',
         sourceId: page.sourceId,
         pageIndex: page.sourceIndex,
         rotation: page.rotation,
+        ...(edits?.crop === undefined ? {} : { crop: edits.crop }),
+        ...(edits?.overlays === undefined ? {} : { overlays: edits.overlays }),
       }
     : { kind: 'blank', width: page.width, height: page.height, rotation: page.rotation };
 }

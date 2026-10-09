@@ -1,3 +1,10 @@
+import type { BookmarkSettings } from '../bookmarks/tree';
+import { DEFAULT_BOOKMARKS } from '../bookmarks/tree';
+import type { MetadataSettings } from '../document/metadata';
+import { NO_METADATA } from '../document/metadata';
+import type { FormMode, FormValues } from '../forms';
+import type { EditsByPage } from '../pages/edits';
+import type { Stamp } from '../stamps/stamp';
 import type { PageRef } from './page-ref';
 
 export interface SourceFile {
@@ -22,9 +29,29 @@ export interface Workspace {
   readonly selection: readonly string[];
   /** Where a shift-click range starts. */
   readonly anchor: string | null;
+  /** Text and pictures stamped on the pages of the output, in the order they are drawn. */
+  readonly stamps: readonly Stamp[];
+  readonly metadata: MetadataSettings;
+  readonly bookmarks: BookmarkSettings;
+  /** Crop and signatures, by page id. */
+  readonly edits: EditsByPage;
+  /** What was typed in the forms of the loaded files. */
+  readonly forms: FormValues;
+  readonly formMode: FormMode;
 }
 
-export const emptyWorkspace: Workspace = { sources: [], pages: [], selection: [], anchor: null };
+export const emptyWorkspace: Workspace = {
+  sources: [],
+  pages: [],
+  selection: [],
+  anchor: null,
+  stamps: [],
+  metadata: NO_METADATA,
+  bookmarks: DEFAULT_BOOKMARKS,
+  edits: {},
+  forms: {},
+  formMode: 'keep',
+};
 
 export function indexOfPage(workspace: Workspace, id: string): number {
   return workspace.pages.findIndex((page) => page.id === id);
