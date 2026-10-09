@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useSession } from '../state/session';
+import { splitHereDraft } from '../state/split';
+import { useUi } from '../state/ui-store';
 import { deleteSelection, duplicateSelection, insertBlankPage, rotateSelection } from './actions';
 
 export function ContextPanel() {
@@ -7,7 +9,12 @@ export function ContextPanel() {
   const workspace = useSession((state) => state.session.workspace);
   const count = workspace.selection.length;
   const exporting = useSession((state) => state.job.phase !== 'idle');
-  const { startExport } = useSession.getState();
+  const { extractSelection } = useSession.getState();
+  const { openExport } = useUi.getState();
+  // "Split here" cuts after the last selected page; with that page last there is nothing to cut.
+  const lastSelected =
+    workspace.pages.findLastIndex((page) => workspace.selection.includes(page.id)) + 1;
+  const canSplitHere = lastSelected > 0 && lastSelected < workspace.pages.length;
 
   return (
     <aside className="context" aria-labelledby="context-heading">
@@ -42,6 +49,19 @@ export function ContextPanel() {
             <button type="button" className="btn" onClick={insertBlankPage}>
               {t('panel.insertBlank')}
             </button>
+            <button type="button" className="btn" onClick={() => void extractSelection()}>
+              {t('panel.extract')}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={!canSplitHere}
+              onClick={() => {
+                openExport('split', splitHereDraft(lastSelected, workspace.pages.length));
+              }}
+            >
+              {t('panel.splitHere')}
+            </button>
           </div>
         </>
       ) : (
@@ -56,7 +76,9 @@ export function ContextPanel() {
                 type="button"
                 className="btn btn-primary"
                 disabled={exporting}
-                onClick={() => void startExport()}
+                onClick={() => {
+                  openExport('pdf');
+                }}
               >
                 {t('topbar.export')}
               </button>

@@ -56,3 +56,57 @@ export function usableBookmarks(
     (page) => page.kind === 'original' && marks.has(bookmarkKey(page.sourceId, page.sourceIndex)),
   ).length;
 }
+
+export type SplitKind = SplitSpec['mode'];
+export type SizeUnit = 'KB' | 'MB';
+
+/** Everything the split form holds, kept outside the dialog so "Split here" can fill it in. */
+export interface SplitDraft {
+  readonly kind: SplitKind;
+  readonly ranges: string;
+  readonly keepRest: boolean;
+  readonly every: number;
+  readonly level: number;
+  readonly sizeValue: number;
+  readonly sizeUnit: SizeUnit;
+}
+
+export const defaultSplitDraft: SplitDraft = {
+  kind: 'every',
+  ranges: '',
+  keepRest: true,
+  every: 10,
+  level: 1,
+  sizeValue: 10,
+  sizeUnit: 'MB',
+};
+
+const UNIT_BYTES: Record<SizeUnit, number> = { KB: 1024, MB: 1024 * 1024 };
+
+/** What the form currently asks for. Numbers that make no sense are passed on as they are; the planners report them. */
+export function specFromDraft(draft: SplitDraft): SplitSpec {
+  switch (draft.kind) {
+    case 'ranges':
+      return { mode: 'ranges', text: draft.ranges, keepRest: draft.keepRest };
+    case 'every':
+      return { mode: 'every', count: draft.every };
+    case 'bookmarks':
+      return { mode: 'bookmarks', level: draft.level };
+    case 'size':
+      return { mode: 'size', limitBytes: draft.sizeValue * UNIT_BYTES[draft.sizeUnit] };
+  }
+}
+
+export function sameSpec(a: SplitSpec, b: SplitSpec): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** "Split here": two files, the pages up to the chosen one and everything after it. */
+export function splitHereDraft(position: number, total: number): SplitDraft {
+  return {
+    ...defaultSplitDraft,
+    kind: 'ranges',
+    ranges: `1-${String(position)}, ${String(position + 1)}-${String(total)}`,
+    keepRest: false,
+  };
+}

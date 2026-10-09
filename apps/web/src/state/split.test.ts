@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { OutlineEntry, PageRef } from '@vidopdf/core';
-import { groupsFor, isInstant, usableBookmarks } from './split';
+import {
+  defaultSplitDraft,
+  groupsFor,
+  isInstant,
+  sameSpec,
+  specFromDraft,
+  splitHereDraft,
+  usableBookmarks,
+} from './split';
 
 const pages: PageRef[] = [
   ...Array.from({ length: 4 }, (_, i) => ({
@@ -83,5 +91,63 @@ describe('isInstant', () => {
   it('is false only for the size mode', () => {
     expect(isInstant({ mode: 'size', limitBytes: 1 })).toBe(false);
     expect(isInstant({ mode: 'every', count: 2 })).toBe(true);
+  });
+});
+
+describe('specFromDraft', () => {
+  it('turns each kind of form into the request it stands for', () => {
+    expect(specFromDraft({ ...defaultSplitDraft, kind: 'every', every: 7 })).toEqual({
+      mode: 'every',
+      count: 7,
+    });
+    expect(
+      specFromDraft({ ...defaultSplitDraft, kind: 'ranges', ranges: '1-3', keepRest: false }),
+    ).toEqual({
+      mode: 'ranges',
+      text: '1-3',
+      keepRest: false,
+    });
+    expect(specFromDraft({ ...defaultSplitDraft, kind: 'bookmarks', level: 2 })).toEqual({
+      mode: 'bookmarks',
+      level: 2,
+    });
+  });
+
+  it('converts the size to bytes with 1024-based units', () => {
+    expect(
+      specFromDraft({ ...defaultSplitDraft, kind: 'size', sizeValue: 2, sizeUnit: 'MB' }),
+    ).toEqual({
+      mode: 'size',
+      limitBytes: 2 * 1024 * 1024,
+    });
+    expect(
+      specFromDraft({ ...defaultSplitDraft, kind: 'size', sizeValue: 500, sizeUnit: 'KB' }),
+    ).toEqual({
+      mode: 'size',
+      limitBytes: 512_000,
+    });
+  });
+});
+
+describe('sameSpec and splitHereDraft', () => {
+  it('compares requests by value', () => {
+    expect(sameSpec({ mode: 'every', count: 2 }, { mode: 'every', count: 2 })).toBe(true);
+    expect(sameSpec({ mode: 'every', count: 2 }, { mode: 'every', count: 3 })).toBe(false);
+  });
+
+  it('makes two files: up to the page and everything after it', () => {
+    const draft = splitHereDraft(4, 10);
+    expect(draft).toMatchObject({ kind: 'ranges', ranges: '1-4, 5-10', keepRest: false });
+    const spec = specFromDraft(draft);
+    const pages = Array.from({ length: 10 }, (_, i) => ({
+      kind: 'original' as const,
+      id: `p${String(i)}`,
+      sourceId: 'S',
+      sourceIndex: i,
+      rotation: 0 as const,
+    }));
+    expect(sizes(groupsFor(spec as Exclude<typeof spec, { mode: 'size' }>, pages, {}))).toEqual([
+      4, 6,
+    ]);
   });
 });

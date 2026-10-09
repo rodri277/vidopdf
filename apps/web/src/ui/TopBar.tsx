@@ -4,6 +4,7 @@ import type { CommandLabel } from '@vidopdf/core';
 import { languages, setLanguage } from '../i18n';
 import type { Language } from '../i18n';
 import { useSession } from '../state/session';
+import { useUi } from '../state/ui-store';
 import { redoAction, undoAction } from './actions';
 
 const LANGUAGE_NAMES: Record<Language, string> = { es: 'Español', en: 'English' };
@@ -17,7 +18,7 @@ export function TopBar({ onAddFiles }: TopBarProps) {
   const session = useSession((state) => state.session);
   const hasPages = session.workspace.pages.length > 0;
   const exporting = useSession((state) => state.job.phase === 'running');
-  const { startExport } = useSession.getState();
+  const { openExport } = useUi.getState();
 
   const undoWhat = undoLabel(session);
   const redoWhat = redoLabel(session);
@@ -77,7 +78,9 @@ export function TopBar({ onAddFiles }: TopBarProps) {
         type="button"
         className="btn btn-primary"
         disabled={!hasPages || exporting}
-        onClick={() => void startExport()}
+        onClick={() => {
+          openExport();
+        }}
       >
         {t('topbar.export')}
       </button>

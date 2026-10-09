@@ -24,7 +24,9 @@ export function useShortcuts(onAddFiles: () => void): void {
       selectAll: selectAllPages,
       duplicate: duplicateSelection,
       addFiles: onAddFiles,
-      export: () => void useSession.getState().startExport(),
+      export: () => {
+        if (useSession.getState().session.workspace.pages.length > 0) useUi.getState().openExport();
+      },
       rotateRight: () => {
         rotateSelection(90);
       },
