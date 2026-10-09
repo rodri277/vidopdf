@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { DragStartEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  getClientRect,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragStartEvent, MeasuringConfiguration } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import { renderKey } from '@vidopdf/core';
 import type { PageRef } from '@vidopdf/core';
@@ -15,6 +22,14 @@ import { cellRect, gapAt, gridMetrics, indicesInRect, visibleRange } from './gri
 import type { Gap, Rect } from './grid-layout';
 import { PageCard, PageFace, fit } from './PageCard';
 import { sourceColor } from './source-colors';
+
+/**
+ * Cards are placed with a CSS transform. dnd-kit measures the dragged card ignoring transforms by
+ * default, which put the drag picture at the grid's top-left corner instead of under the pointer.
+ */
+const MEASURING: MeasuringConfiguration = {
+  draggable: { measure: (element) => getClientRect(element) },
+};
 
 /** Rows kept ready above and below the screen. */
 export const GRID_ID = 'page-grid';
@@ -256,6 +271,7 @@ export function PageGrid() {
   return (
     <DndContext
       sensors={sensors}
+      measuring={MEASURING}
       onDragStart={onDragStart}
       onDragEnd={() => {
         finishDrag(true);
