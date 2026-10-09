@@ -44,18 +44,28 @@ export {
   buildExtractPlan,
   buildSplitPlan,
   exportPageCount,
+  outputCompression,
   outputPageCount,
   suggestedBaseName,
 } from './export/export-plan';
-export type { AssembleStep, ExportOutput, ExportPlan, ExportStep } from './export/export-plan';
+export type {
+  AssembleStep,
+  CompressStep,
+  ExportOutput,
+  ExportPlan,
+  ExportStep,
+} from './export/export-plan';
 export { MAX_CANVAS_PIXELS, MEMORY_WARNING_BYTES } from './limits';
 export { paddedNumber, safeFileName, stripExtension, uniqueNames } from './names';
 export * from './split';
 export * from './images';
+export * from './compression';
 export { LruCache } from './cache/lru';
 export { planRenders } from './scheduling/render-plan';
 export type { RenderPlan, RenderPlanInput } from './scheduling/render-plan';
 export type {
+  CompressionOptions,
+  CompressionOutcome,
   CompressionPreset,
   EncodedImage,
   OutlineEntry,
