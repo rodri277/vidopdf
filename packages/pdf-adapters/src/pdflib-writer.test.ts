@@ -1,11 +1,8 @@
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ExportPage } from '@vidopdf/core';
 import { fixture } from './testing/fixtures';
 import { readPages } from './testing/pdf-text';
+import { qpdfCheck } from './testing/qpdf';
 import { createPdfLibWriter } from './pdflib-writer';
 
 const writer = createPdfLibWriter();
@@ -14,13 +11,6 @@ const sources = new Map([
   ['b', fixture('rotated-2p.pdf')],
   ['c', fixture('single-1p.pdf')],
 ]);
-
-function qpdfCheck(bytes: Uint8Array): void {
-  const file = join(mkdtempSync(join(tmpdir(), 'vidopdf-')), 'out.pdf');
-  writeFileSync(file, bytes);
-  // Throws (non-zero exit) when qpdf finds structural errors. qpdf is a test-only tool.
-  execFileSync('qpdf', ['--check', file], { stdio: 'pipe' });
-}
 
 describe('inspect', () => {
   it('counts the pages of a valid PDF', async () => {
