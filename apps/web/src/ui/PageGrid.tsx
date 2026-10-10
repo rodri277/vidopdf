@@ -74,7 +74,7 @@ function pointerInContent(scroller: HTMLElement, clientX: number, clientY: numbe
 
 /** What the card of a page shows about its edits. */
 function editMarks(edits: PageEdits | undefined) {
-  return { crop: edits?.crop, signed: (edits?.overlays?.length ?? 0) > 0 };
+  return { crop: edits?.crop, overlays: edits?.overlays };
 }
 
 export function PageGrid() {

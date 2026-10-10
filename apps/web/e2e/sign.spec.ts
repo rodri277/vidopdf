@@ -50,6 +50,43 @@ test('draws a signature, puts it on the page, moves it with the keyboard and exp
   expect((await exportPdf(page)).toString('latin1')).toMatch(/\/Subtype\s*\/Image/);
 });
 
+test('the signature shows on the page in the grid and in the preview, where it will land', async ({
+  page,
+}) => {
+  await loadFive(page);
+  const dialog = await openSign(page);
+  await dialog.getByRole('radio', { name: 'Escribirla' }).check();
+  await dialog.getByLabel('Tu nombre').fill('Ana Pérez');
+  await dialog.getByRole('button', { name: 'Usar esta firma' }).click();
+  await dialog.getByRole('button', { name: 'Poner la firma en esta página' }).click();
+  await dialog.getByRole('button', { name: 'Cerrar' }).click();
+
+  // In the grid: a picture over the first page, at the place it was put (55 % across, 80 % down).
+  const card = page.getByRole('option').first();
+  const mark = card.locator('.overlay-picture');
+  await expect(mark).toHaveCount(1);
+  await expect(mark).toBeVisible();
+  expect(await mark.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  const [frame, box] = await Promise.all([
+    card.locator('.page-frame').boundingBox(),
+    mark.boundingBox(),
+  ]);
+  if (frame === null || box === null) throw new Error('no boxes');
+  expect((box.x - frame.x) / frame.width).toBeCloseTo(0.55, 1);
+  expect((box.y - frame.y) / frame.height).toBeCloseTo(0.8, 1);
+  expect(box.width / frame.width).toBeCloseTo(0.3, 1);
+  // The other pages have none.
+  await expect(page.locator('.overlay-picture')).toHaveCount(1);
+
+  // In the preview.
+  await card.dblclick();
+  const preview = page.getByRole('dialog', { name: /Vista previa de la página 1 de 5/ });
+  await expect(preview.locator('.overlay-picture')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /^Deshacer/ }).click();
+  await expect(page.locator('.overlay-picture')).toHaveCount(0);
+});
+
 test('a typed signature and one from a picture both become something placeable', async ({
   page,
 }) => {
