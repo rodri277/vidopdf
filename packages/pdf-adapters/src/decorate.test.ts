@@ -334,7 +334,7 @@ describe('metadata and bookmarks', () => {
     expect(doc.getTitle()).toBe('Report ñ');
     expect(doc.getAuthor()).toBe('vidotho');
     expect(doc.getSubject()).toBeUndefined();
-    expect(doc.getKeywords()).toBe('a b');
+    expect(doc.getKeywords()).toBe('a, b');
     expect(doc.getProducer()).toBeUndefined();
     expect(doc.getCreator()).toBeUndefined();
     expect(doc.getCreationDate()).toBeUndefined();

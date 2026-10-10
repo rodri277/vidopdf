@@ -117,6 +117,42 @@ describe('protecting a result', () => {
     });
   });
 
+  it('encrypts the text of the file too: title, author and bookmark names read back intact', async () => {
+    const built = await writer.assemble(
+      new Map([['s', fixture('mixed-sizes-3p.pdf')]]),
+      [first('s')],
+      {
+        decorations: {
+          stamps: [],
+          fileName: 'out.pdf',
+          date: '',
+          metadata: {
+            title: 'Informe año',
+            author: 'A. Writer',
+            subject: '',
+            keywords: ['a', 'b'],
+          },
+          bookmarks: [{ title: 'Capítulo uno', pageIndex: 0, children: [] }],
+          forms: {},
+          formMode: 'keep',
+        },
+      },
+    );
+    if (!built.ok) throw new Error(built.error.kind);
+    const locked = await writer.protect(built.value, {
+      userPassword: 'open-me',
+      ownerPassword: 'owner-pw',
+      permissions: ALL_ALLOWED,
+    });
+    if (!locked.ok) throw new Error(locked.error.kind);
+    const json = qpdf(['--password=open-me', '--json', '--json-key=qpdf'], locked.value);
+    expect(json).toContain('"/Title": "u:Informe año"');
+    expect(json).toContain('"/Author": "u:A. Writer"');
+    expect(json).toContain('"/Keywords": "u:a, b"');
+    expect(json).toContain('"/Title": "u:Capítulo uno"');
+    expect(qpdf(['--check', '--password=open-me'], locked.value)).toContain('No syntax or stream');
+  });
+
   it('a file with an empty open password opens for anyone and still carries its restrictions', async () => {
     const result = await writer.protect(await plain(), {
       userPassword: '',

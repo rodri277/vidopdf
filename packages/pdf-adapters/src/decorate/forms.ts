@@ -65,6 +65,28 @@ function topOf(ref: PDFRef, doc: PDFDocument): { ref: PDFRef; dict: PDFDict } | 
   return undefined;
 }
 
+const KIDS = PDFName.of('Kids');
+
+/**
+ * Keeps, among the kids of a field, only the widgets that sit on pages of the output (and the
+ * intermediate nodes that still lead to one). Returns whether anything is left. A radio group
+ * with one button on a page that was left out must not carry that button, nor its page.
+ */
+function pruneKids(dict: PDFDict, doc: PDFDocument, keep: ReadonlySet<PDFRef>): boolean {
+  const kids = dict.lookupMaybe(KIDS, PDFArray);
+  if (kids === undefined) return true;
+  for (let index = kids.size() - 1; index >= 0; index--) {
+    const kid = kids.get(index);
+    const child = kid instanceof PDFRef ? doc.context.lookupMaybe(kid, PDFDict) : undefined;
+    const survives =
+      kid instanceof PDFRef &&
+      child !== undefined &&
+      (keep.has(kid) || (child.has(KIDS) && pruneKids(child, doc, keep)));
+    if (!survives) kids.remove(index);
+  }
+  return kids.size() > 0;
+}
+
 const unique = (name: string, used: Set<string>): string => {
   let candidate = name;
   for (let suffix = 2; used.has(candidate); suffix++) candidate = `${name}_${String(suffix)}`;
@@ -105,6 +127,7 @@ export function rebuildForms(
   placed: readonly PlacedPage[],
 ): FieldOrigin[] {
   const fields = PDFArray.withContext(output.context);
+  const keep = new Set(placed.flatMap(({ page }) => widgetsOf(page, output)));
   const seen = new Set<PDFRef>();
   const names = new Set<string>();
   const origins: FieldOrigin[] = [];
@@ -114,6 +137,7 @@ export function rebuildForms(
       const top = topOf(widget, output);
       if (top === undefined || seen.has(top.ref)) continue;
       seen.add(top.ref);
+      if (!pruneKids(top.dict, output, keep)) continue;
       const original = textOf(top.dict.get(PDFName.of('T'))) ?? '';
       const renamed = unique(original, names);
       names.add(renamed);

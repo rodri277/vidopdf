@@ -18,7 +18,10 @@ function writeMetadata(doc: PDFDocument, metadata: Decorations['metadata']): voi
   if (metadata.title !== '') doc.setTitle(metadata.title, { showInWindowTitleBar: true });
   if (metadata.author !== '') doc.setAuthor(metadata.author);
   if (metadata.subject !== '') doc.setSubject(metadata.subject);
-  if (metadata.keywords.length > 0) doc.setKeywords([...metadata.keywords]);
+  if (metadata.keywords.length > 0)
+    // One string, comma separated: the library would join the list with spaces, and then "tax
+    // return" and "year" could not be told apart from three words.
+    doc.setKeywords([metadata.keywords.join(', ')]);
 }
 
 /**
