@@ -1,8 +1,10 @@
 import { resolveBookmarks } from '../bookmarks/tree';
 import type { BookmarkNode } from '../bookmarks/tree';
+import { cleanMetadata } from '../document/metadata';
 import type { Decorations } from './decorations';
 import { safeFileName, paddedNumber, stripExtension, uniqueNames } from '../names';
 import type { Permissions } from '../security/permissions';
+import { stampProblems } from '../stamps/stamp';
 import type { PageGroup } from '../split/groups';
 import { formatRange } from '../split/ranges';
 import { toExportPage } from '../workspace/page-ref';
@@ -72,6 +74,11 @@ export function suggestedBaseName(workspace: Workspace): string {
     : DEFAULT_BASE;
 }
 
+/** Stamps with a problem (an empty text, a bad range) are left out rather than half drawn. */
+function usableStamps(workspace: Workspace) {
+  return workspace.stamps.filter((stamp) => stampProblems(stamp).length === 0);
+}
+
 /** The steps of one output: its pages and what is done to them, then compression and protection. */
 function stepsFor(
   workspace: Workspace,
@@ -80,10 +87,10 @@ function stepsFor(
   options: ExportOptions,
 ): readonly ExportStep[] {
   const decorations: Decorations = {
-    stamps: workspace.stamps,
+    stamps: usableStamps(workspace),
     fileName: name,
     date: options.date ?? '',
-    metadata: workspace.metadata,
+    metadata: cleanMetadata(workspace.metadata),
     bookmarks: resolveBookmarks(
       options.bookmarks ?? [],
       pages.map((page) => page.id),
@@ -110,10 +117,10 @@ function stepsFor(
  */
 export function decorationsForMeasuring(workspace: Workspace): Decorations {
   return {
-    stamps: workspace.stamps,
+    stamps: usableStamps(workspace),
     fileName: 'measure.pdf',
     date: '',
-    metadata: workspace.metadata,
+    metadata: cleanMetadata(workspace.metadata),
     bookmarks: [],
     forms: workspace.forms,
     formMode: workspace.formMode,

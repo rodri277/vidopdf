@@ -23,6 +23,7 @@ function initialSize(): number {
 }
 
 export type ExportMode = 'pdf' | 'split' | 'images';
+export type DocumentTab = 'numbering' | 'watermark' | 'metadata';
 
 /** What the picture form holds. */
 export interface ImageDraft {
@@ -43,6 +44,12 @@ interface UiState {
   setExportMode: (mode: ExportMode) => void;
   patchSplit: (changes: Partial<SplitDraft>) => void;
   patchImages: (changes: Partial<ImageDraft>) => void;
+  /** The dialog for what is stamped and written into the output. */
+  documentOpen: boolean;
+  documentTab: DocumentTab;
+  openDocument: (tab?: DocumentTab) => void;
+  closeDocument: () => void;
+  setDocumentTab: (tab: DocumentTab) => void;
   /** The page the keyboard is on (not necessarily selected). */
   activeId: string | null;
   thumbSize: number;
@@ -61,6 +68,17 @@ export const useUi = create<UiState>((set) => ({
   exportMode: 'pdf',
   splitDraft: defaultSplitDraft,
   imageDraft: { format: 'png', dpi: DEFAULT_DPI, quality: DEFAULT_QUALITY, scope: 'all' },
+  documentOpen: false,
+  documentTab: 'numbering',
+  openDocument: (tab) => {
+    set((state) => ({ documentOpen: true, documentTab: tab ?? state.documentTab }));
+  },
+  closeDocument: () => {
+    set({ documentOpen: false });
+  },
+  setDocumentTab: (documentTab) => {
+    set({ documentTab });
+  },
   openExport: (mode, split) => {
     set((state) => ({
       exportOpen: true,

@@ -843,3 +843,157 @@ kbd {
   margin-inline: auto;
   padding: var(--space-6) var(--space-4);
 }
+
+/* Document dialog: stamps, watermark, information */
+.document-dialog {
+  width: min(960px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(92vh, 900px);
+  overflow: auto;
+}
+
+.document-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-6);
+  margin-block: var(--space-4);
+}
+
+.document-controls,
+.document-preview {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.document-preview {
+  position: sticky;
+  top: 0;
+}
+
+.document-panel {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.stamp-form {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.stamp-form legend {
+  padding-inline: var(--space-2);
+  font-weight: 600;
+}
+
+.stamp-form[data-bare='true'] {
+  padding: 0;
+  border: 0;
+}
+
+.stamp-fields {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.anchor-picker {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.anchor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  gap: var(--space-1);
+}
+
+.anchor-cell {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.anchor-cell input {
+  position: absolute;
+  opacity: 0;
+}
+
+.anchor-cell[data-checked='true'] {
+  border-color: var(--accent);
+}
+
+.anchor-cell[data-checked='true'] .anchor-dot {
+  background: var(--accent);
+}
+
+.anchor-cell:has(input:focus-visible) {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.anchor-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.stamp-preview {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.stamp-preview-page {
+  position: relative;
+}
+
+.stamp-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.stamp-text {
+  position: absolute;
+  font-family: var(--font-ui);
+  line-height: 1.21;
+  white-space: nowrap;
+}
+
+.stamp-image {
+  position: absolute;
+}
+
+.asset-thumb {
+  max-width: 96px;
+  max-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+}
+
+@media (max-width: 800px) {
+  .document-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .document-preview {
+    position: static;
+  }
+}

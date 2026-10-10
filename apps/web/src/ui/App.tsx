@@ -20,6 +20,9 @@ const ImageImportDialog = lazy(() =>
   import('./ImageImportDialog').then((m) => ({ default: m.ImageImportDialog })),
 );
 const LegalPage = lazy(() => import('../legal/LegalPage').then((m) => ({ default: m.LegalPage })));
+const DocumentDialog = lazy(() =>
+  import('./document/DocumentDialog').then((m) => ({ default: m.DocumentDialog })),
+);
 const PreviewDialog = lazy(() =>
   import('./PreviewDialog').then((m) => ({ default: m.PreviewDialog })),
 );
@@ -37,6 +40,7 @@ export function App() {
   const exportRequested = useUi((state) => state.exportOpen);
   const jobActive = useSession((state) => state.job.phase !== 'idle');
   const exportOpen = exportRequested || jobActive;
+  const documentOpen = useUi((state) => state.documentOpen);
   const importOpen = useSession((state) => state.pendingImages.length > 0);
   const legalPage = useLegalPage();
   const onFiles = useCallback(
@@ -70,6 +74,7 @@ export function App() {
       <Suspense fallback={null}>
         {exportOpen && <ExportDialog />}
         {importOpen && <ImageImportDialog />}
+        {documentOpen && <DocumentDialog />}
       </Suspense>
       {previewOpen && (
         <Suspense fallback={null}>

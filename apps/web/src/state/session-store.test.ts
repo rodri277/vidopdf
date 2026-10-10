@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method -- the mocks are asserted through the objects that hold them */
 import { describe, expect, it, vi } from 'vitest';
-import { err, ok, pdfError } from '@vidopdf/core';
+import { NO_METADATA, err, ok, pdfError, presets } from '@vidopdf/core';
 import type {
   ImageExportOptions,
   ImagePageOptions,
@@ -99,13 +99,20 @@ function setup(
     ...overrides.renderWorker,
   };
   const save = vi.fn(() => Promise.resolve());
+  const imageSize = vi.fn((): Promise<{ width: number; height: number } | undefined> =>
+    Promise.resolve({ width: 200, height: 100 }),
+  );
+  const revokeUrl = vi.fn();
   const store = createSessionStore({
     exportWorker: () => exportWorker,
     renderWorker: () => renderWorker,
     save,
     newId: () => `id${String(++counter)}`,
+    imageSize,
+    objectUrl: (blob: Blob) => `blob:${(blob as File).name}`,
+    revokeUrl,
   });
-  return { store, exportWorker, renderWorker, save };
+  return { store, exportWorker, renderWorker, save, imageSize, revokeUrl };
 }
 
 /** Loads files one at a time, each as its own step of the history. */
@@ -673,5 +680,87 @@ describe('when a worker call fails outright', () => {
     vi.mocked(ctx.save).mockImplementationOnce(boom);
     await expect(ctx.store.getState().saveResult()).resolves.toBeUndefined();
     expect(ctx.store.getState().job).toMatchObject({ phase: 'ready' });
+  });
+});
+
+describe('stamps, metadata and pictures', () => {
+  it('sets and removes the stamp of a slot, keeping the drawing order, and undo restores it', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    const { setStamp, undo } = ctx.store.getState();
+    setStamp('watermark', presets.watermark('x', 'DRAFT'));
+    setStamp('pageNumber', presets.pageNumber('x'));
+    setStamp('header', presets.header('x'));
+    expect(ws(ctx).stamps.map((stamp) => stamp.id)).toEqual(['header', 'pageNumber', 'watermark']);
+    setStamp('pageNumber', null);
+    expect(ws(ctx).stamps.map((stamp) => stamp.id)).toEqual(['header', 'watermark']);
+    undo();
+    expect(ws(ctx).stamps.map((stamp) => stamp.id)).toEqual(['header', 'pageNumber', 'watermark']);
+  });
+
+  it('typing in the text of a stamp is one step of the history, other fields are their own', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    const base = presets.footer('footer');
+    for (const template of ['R', 'Re', 'Rep']) {
+      ctx.store.getState().setStamp('footer', { ...base, template }, 'template');
+    }
+    expect(ctx.store.getState().session.past?.size).toBe(2); // the load and the typing
+    ctx.store.getState().undo();
+    expect(ws(ctx).stamps).toEqual([]);
+  });
+
+  it('keeps the metadata and undoes it as one step per typing run', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().setMetadata({ ...NO_METADATA, title: 'A' });
+    ctx.store.getState().setMetadata({ ...NO_METADATA, title: 'Ab' });
+    expect(ws(ctx).metadata.title).toBe('Ab');
+    ctx.store.getState().undo();
+    expect(ws(ctx).metadata).toEqual(NO_METADATA);
+  });
+
+  it('plans exports with the stamps and the cleaned metadata', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().setStamp('pageNumber', presets.pageNumber('x'));
+    ctx.store.getState().setMetadata({ ...NO_METADATA, title: '  Report\u0007 ' });
+    await ctx.store.getState().startExport();
+    const output = vi.mocked(ctx.exportWorker.runPlan).mock.calls.at(-1)?.[1][0];
+    expect(output?.decorations?.stamps).toHaveLength(1);
+    expect(output?.decorations?.metadata.title).toBe('Report');
+  });
+
+  it('registers a picture with the export worker and keeps what the interface needs', async () => {
+    const ctx = setup();
+    const file = new File(
+      [new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0])],
+      'logo.png',
+      { type: 'image/png' },
+    );
+    const added = await ctx.store.getState().addAsset(file);
+    if (typeof added === 'string') throw new Error(added);
+    expect(added).toMatchObject({
+      name: 'logo.png',
+      mime: 'image/png',
+      aspect: 0.5,
+      url: 'blob:logo.png',
+    });
+    expect(ctx.exportWorker.registerAsset).toHaveBeenCalledWith(added.id, expect.any(Uint8Array));
+    expect(ctx.store.getState().assets[added.id]).toBe(added);
+    ctx.store.getState().removeAsset(added.id);
+    expect(ctx.exportWorker.releaseAsset).toHaveBeenCalledWith(added.id);
+    expect(ctx.revokeUrl).toHaveBeenCalledWith('blob:logo.png');
+    expect(ctx.store.getState().assets).toEqual({});
+    ctx.store.getState().removeAsset('unknown'); // nothing happens
+  });
+
+  it('turns down what is not a PNG or JPEG, and what the browser cannot read', async () => {
+    const ctx = setup();
+    expect(await ctx.store.getState().addAsset(pdf('three.pdf'))).toBe('unsupported');
+    expect(await ctx.store.getState().addAsset(webp('x.webp'))).toBe('unsupported');
+    ctx.imageSize.mockResolvedValueOnce(undefined);
+    expect(await ctx.store.getState().addAsset(png('broken.png'))).toBe('unreadable');
+    expect(ctx.exportWorker.registerAsset).not.toHaveBeenCalled();
   });
 });
