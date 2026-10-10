@@ -18,7 +18,7 @@ export function TopBar({ onAddFiles }: TopBarProps) {
   const session = useSession((state) => state.session);
   const hasPages = session.workspace.pages.length > 0;
   const exporting = useSession((state) => state.job.phase === 'running');
-  const { openExport } = useUi.getState();
+  const { openExport, openDocument } = useUi.getState();
 
   const undoWhat = undoLabel(session);
   const redoWhat = redoLabel(session);
@@ -56,6 +56,16 @@ export function TopBar({ onAddFiles }: TopBarProps) {
         onClick={redoAction}
       >
         {t('topbar.redo')}
+      </button>
+      <button
+        type="button"
+        className="btn"
+        disabled={!hasPages}
+        onClick={() => {
+          openDocument();
+        }}
+      >
+        {t('document.open')}
       </button>
       <span className="spacer" />
       <div role="group" aria-label={t('topbar.language')} className="lang">
