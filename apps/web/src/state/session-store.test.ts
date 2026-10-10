@@ -104,6 +104,7 @@ function setup(
     cancel: vi.fn(),
     release: vi.fn(() => Promise.resolve()),
     outline: vi.fn(() => Promise.resolve(ok([]))),
+    metadata: vi.fn(() => Promise.resolve(ok(NO_METADATA))),
     encodableFormats: vi.fn(() => Promise.resolve(['png', 'jpeg'] as const)),
     exportImages: vi.fn(() =>
       Promise.resolve(ok(produced({ kind: 'zip', name: 'x-png.zip', mime: 'application/zip' }))),
@@ -749,6 +750,38 @@ describe('stamps, metadata and pictures', () => {
     ctx.store.getState().setMetadata({ ...NO_METADATA, title: 'Ab' });
     expect(ws(ctx).metadata.title).toBe('Ab');
     ctx.store.getState().undo();
+    expect(ws(ctx).metadata).toEqual(NO_METADATA);
+  });
+
+  it('copies the details of a loaded file, leaves alone what the file lacks, and undoes in one step', async () => {
+    const ctx = setup({
+      renderWorker: {
+        metadata: vi.fn(() =>
+          Promise.resolve(ok({ ...NO_METADATA, title: 'From file', keywords: ['a', 'b'] })),
+        ),
+      },
+    });
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().setMetadata({ ...NO_METADATA, author: 'Me', title: 'Mine' });
+    const sourceId = ws(ctx).sources[0]?.id ?? '';
+    expect(await ctx.store.getState().importMetadata(sourceId)).toBe(true);
+    expect(ws(ctx).metadata).toEqual({
+      title: 'From file',
+      author: 'Me',
+      subject: '',
+      keywords: ['a', 'b'],
+    });
+    ctx.store.getState().undo();
+    expect(ws(ctx).metadata.title).toBe('Mine');
+  });
+
+  it('says so, and changes nothing, when the file has no details or cannot be read', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    const sourceId = ws(ctx).sources[0]?.id ?? '';
+    expect(await ctx.store.getState().importMetadata(sourceId)).toBe(false);
+    vi.mocked(ctx.renderWorker.metadata).mockRejectedValueOnce(new Error('worker died'));
+    expect(await ctx.store.getState().importMetadata(sourceId)).toBe(false);
     expect(ws(ctx).metadata).toEqual(NO_METADATA);
   });
 

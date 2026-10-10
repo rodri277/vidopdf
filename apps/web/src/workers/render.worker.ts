@@ -21,6 +21,7 @@ const api: RenderWorkerApi = {
   cancel: core.cancel,
   release: core.release,
   outline: core.outline,
+  metadata: core.metadata,
   encodableFormats: core.encodableFormats,
   cancelJob: core.cancelJob,
 

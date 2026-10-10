@@ -2,10 +2,12 @@ import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist';
 import {
   MAX_CANVAS_PIXELS,
   clampQuality,
+  cleanMetadata,
   err,
   fitResolution,
   imageMime,
   ok,
+  parseKeywords,
   pdfError,
 } from '@vidopdf/core';
 import type {
@@ -14,6 +16,7 @@ import type {
   ImageFormat,
   OutlineEntry,
   PdfError,
+  MetadataSettings,
   PdfErrorKind,
   PdfInfo,
   PdfRenderer,
@@ -304,10 +307,31 @@ export function createPdfjsRenderer(
     }
   }
 
+  async function metadata(): Promise<Result<MetadataSettings, PdfError>> {
+    if (doc === undefined) return err(pdfError('internal', 'no document open'));
+    try {
+      const { info } = await doc.getMetadata();
+      const text = (key: string) => {
+        const value = (info as Record<string, unknown> | undefined)?.[key];
+        return typeof value === 'string' ? value : '';
+      };
+      return ok(
+        cleanMetadata({
+          title: text('Title'),
+          author: text('Author'),
+          subject: text('Subject'),
+          keywords: parseKeywords(text('Keywords')),
+        }),
+      );
+    } catch (error) {
+      return err(fail(error));
+    }
+  }
+
   async function outline(): Promise<Result<OutlineEntry[], PdfError>> {
     if (doc === undefined) return err(pdfError('internal', 'no document open'));
     return readOutline(doc);
   }
 
-  return { open, renderPage, renderImage, outline, trim, close };
+  return { open, renderPage, renderImage, outline, metadata, trim, close };
 }

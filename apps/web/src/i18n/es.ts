@@ -394,6 +394,11 @@ export const es = {
       subject: 'Asunto',
       keywords: 'Palabras clave',
       keywordsHint: 'Separadas por comas.',
+      importFrom: 'Copiar los datos de un archivo cargado',
+      importFile: 'Archivo',
+      import: 'Copiar',
+      importDone: 'Datos copiados. Se pueden cambiar y deshacer.',
+      importNone: 'Ese archivo no tiene título, autor, asunto ni palabras clave.',
     },
   },
   crop: {

@@ -95,7 +95,7 @@ export function createExportCore(deps: ExportCoreDeps) {
     const bytes = sources.get(sourceId);
     return bytes === undefined
       ? err(pdfError('internal', `unknown source ${sourceId}`))
-      : deps.writer.readForm(bytes);
+      : deps.writer.readForm(bytes, passwords.get(sourceId));
   }
 
   function registerAsset(assetId: string, bytes: Uint8Array): void {

@@ -394,6 +394,11 @@ export const en: Widen<typeof es> = {
       subject: 'Subject',
       keywords: 'Keywords',
       keywordsHint: 'Separated by commas.',
+      importFrom: 'Copy the details of a loaded file',
+      importFile: 'File',
+      import: 'Copy',
+      importDone: 'Details copied. You can change them and undo.',
+      importNone: 'That file has no title, author, subject or keywords.',
     },
   },
   crop: {
