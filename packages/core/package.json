@@ -1,6 +1,6 @@
 {
   "name": "@vidopdf/core",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "description": "Pure TypeScript domain core for Vidopdf. No DOM, no PDF libraries.",
