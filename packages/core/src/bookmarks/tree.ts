@@ -218,3 +218,16 @@ export function outdentBookmark(nodes: readonly BookmarkNode[], id: string): Boo
   if (above === undefined) return [...nodes];
   return moveBookmark(nodes, id, above.parent?.id ?? null, above.index + 1);
 }
+
+/** Moves a node up (-1) or down (+1) among its siblings; at either end nothing changes. */
+export function shiftBookmark(
+  nodes: readonly BookmarkNode[],
+  id: string,
+  delta: -1 | 1,
+): BookmarkNode[] {
+  const spot = locate(nodes, id);
+  if (spot === undefined) return [...nodes];
+  const target = spot.index + delta;
+  if (target < 0 || target >= spot.siblings.length) return [...nodes];
+  return moveBookmark(nodes, id, spot.parent?.id ?? null, target);
+}

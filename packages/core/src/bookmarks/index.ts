@@ -11,6 +11,7 @@ export {
   outdentBookmark,
   removeBookmark,
   resolveBookmarks,
+  shiftBookmark,
   updateBookmark,
 } from './tree';
 export type {

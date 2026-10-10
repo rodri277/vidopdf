@@ -12,6 +12,7 @@ import {
   outdentBookmark,
   removeBookmark,
   resolveBookmarks,
+  shiftBookmark,
   updateBookmark,
 } from './tree';
 import type { BookmarkNode } from './tree';
@@ -183,5 +184,19 @@ describe('editing the tree', () => {
         },
       ),
     );
+  });
+
+  it('shifts a node among its siblings and stops at the ends', () => {
+    const flat = [
+      node('a', 'p0'),
+      node('b', 'p1', [node('b1', 'p1'), node('b2', 'p2')]),
+      node('c', 'p2'),
+    ];
+    expect(ids(shiftBookmark(flat, 'a', 1))).toEqual(['b', 'b1', 'b2', 'a', 'c']);
+    expect(ids(shiftBookmark(flat, 'c', -1))).toEqual(['a', 'c', 'b', 'b1', 'b2']);
+    expect(ids(shiftBookmark(flat, 'b2', -1))).toEqual(['a', 'b', 'b2', 'b1', 'c']);
+    expect(ids(shiftBookmark(flat, 'a', -1))).toEqual(ids(flat));
+    expect(ids(shiftBookmark(flat, 'c', 1))).toEqual(ids(flat));
+    expect(ids(shiftBookmark(flat, 'nope', 1))).toEqual(ids(flat));
   });
 });
