@@ -1,7 +1,7 @@
 import { CONTACT_EMAIL } from './types';
 import type { LegalTexts } from './types';
 
-const UPDATED = '9 de octubre de 2026';
+const UPDATED = '10 de octubre de 2026';
 
 export const legalEs: LegalTexts = {
   privacy: {
@@ -24,7 +24,7 @@ export const legalEs: LegalTexts = {
         heading: 'Qué pasa con tus archivos',
         paragraphs: [
           'Los archivos que eliges se leen con las funciones normales del navegador y se procesan en la memoria de tu equipo, en trabajadores web (Web Workers). El resultado se guarda donde tú decidas al pulsar «Guardar».',
-          'Ningún archivo se sube a un servidor ni se guarda en el navegador entre una visita y otra: al cerrar o recargar la pestaña, el espacio de trabajo desaparece. Como nunca recibimos el contenido de tus documentos, no lo tratamos como datos personales.',
+          'Ningún archivo se sube a un servidor ni se guarda en el navegador entre una visita y otra: al cerrar o recargar la pestaña, el espacio de trabajo desaparece. Lo mismo vale para las contraseñas que escribas, las imágenes de firma y los valores de formularios: solo viven en la memoria de la pestaña y no se guardan. Como nunca recibimos el contenido de tus documentos, no lo tratamos como datos personales.',
         ],
       },
       {
@@ -88,7 +88,13 @@ export const legalEs: LegalTexts = {
       {
         heading: 'Objeto',
         paragraphs: [
-          'Vidopdf es un espacio de trabajo para PDF que funciona en tu navegador: permite unir, dividir, reordenar, rotar y comprimir PDF y convertir imágenes a PDF y PDF a imágenes, sin enviar los archivos a ningún servidor.',
+          'Vidopdf es un espacio de trabajo para PDF que funciona en tu navegador: permite unir, dividir, reordenar, rotar, recortar y comprimir PDF, numerar páginas, añadir encabezados, pies y marcas de agua, editar metadatos y marcadores, añadir una firma visual, rellenar formularios, poner contraseña a un archivo y convertir imágenes a PDF y PDF a imágenes, sin enviar los archivos a ningún servidor.',
+        ],
+      },
+      {
+        heading: 'Firma visual',
+        paragraphs: [
+          'La «firma visual» es solo una imagen colocada en la página. No es una firma electrónica avanzada ni cualificada en el sentido del Reglamento eIDAS y no tiene por sí misma el valor probatorio de una firma electrónica. La imagen de tu firma no se guarda ni se envía a ningún sitio.',
         ],
       },
       {
@@ -101,7 +107,9 @@ export const legalEs: LegalTexts = {
       {
         heading: 'Documentos protegidos',
         paragraphs: [
-          'Vidopdf no admite PDF con contraseña ni con restricciones de propietario: los rechaza con un aviso y no los procesa.',
+          'Un PDF con contraseña solo se abre si escribes tú la contraseña; Vidopdf no la adivina, no la recupera ni la guarda, y no ofrece quitar protecciones.',
+          'Si el autor de un PDF limitó lo que se puede hacer con él (por ejemplo, copiar el contenido o imprimir), esas restricciones se mantienen en el archivo nuevo y no se pueden cambiar desde aquí.',
+          'Puedes proteger el archivo resultante con una contraseña y permisos (cifrado AES-256). Si la olvidas, no hay forma de recuperarla.',
         ],
       },
       {
@@ -127,8 +135,9 @@ export const legalEs: LegalTexts = {
         heading: 'Tus documentos',
         items: [
           'Debes tener derecho a usar y modificar los documentos que procesas, y eres responsable de lo que hagas con ellos.',
+          'Las marcas de agua, sellos y firmas que añadas son responsabilidad tuya: necesitas derecho a usar lo que estampas y no puedes hacerte pasar por otra persona.',
           'Vidopdf nunca modifica tus originales: crea archivos nuevos. Aun así, conserva siempre una copia de los originales.',
-          'Revisa el resultado antes de usarlo. Comprimir reduce la calidad de las imágenes de forma irreversible en el archivo nuevo, y unir PDF puede perder marcadores, etiquetas de accesibilidad o enlaces de formularios. El README del proyecto lista estas limitaciones.',
+          'Revisa el resultado antes de usarlo. Comprimir reduce la calidad de las imágenes de forma irreversible en el archivo nuevo, y unir PDF puede perder etiquetas de accesibilidad o enlaces internos. Recortar oculta lo que queda fuera de la página, pero no lo borra del archivo: no lo uses para ocultar información confidencial. Los formularios con XFA y los textos en alfabetos que no sean latino, cirílico o griego no se admiten en sellos y marcas de agua. El README del proyecto lista estas limitaciones.',
         ],
       },
       {

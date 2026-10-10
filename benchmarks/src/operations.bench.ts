@@ -82,5 +82,31 @@ for (const slowdown of SLOWDOWNS) {
       unit: 'ms',
     });
     expect(round(Date.now() - started)).toBeGreaterThan(0);
+    await dialog.getByRole('button', { name: 'Volver' }).click();
+    await dialog.getByRole('button', { name: 'Cerrar' }).click();
+    await expect(dialog).toBeHidden();
+
+    // The same export with page numbers and a text watermark on every page.
+    await page
+      .getByRole('banner')
+      .getByRole('button', { name: /^Documento$/ })
+      .click();
+    const document = page.getByRole('dialog', { name: /^Documento$/ });
+    await document.getByRole('checkbox', { name: 'Activar' }).first().check();
+    await document.getByRole('radio', { name: 'Marca de agua' }).check();
+    await document.getByRole('radio', { name: 'Texto', exact: true }).check();
+    await document.getByRole('button', { name: 'Cerrar' }).first().click();
+    await expect(document).toBeHidden();
+    dialog = await openExportTab(page, 'Un PDF');
+    started = Date.now();
+    await dialog.getByRole('button', { name: 'Exportar PDF' }).click();
+    await expect(dialog.locator('.result-name')).toBeVisible({ timeout: 300_000 });
+    record({
+      ...base,
+      scenario: 'Export 500 pages with page numbers and a watermark',
+      metric: 'time',
+      value: Date.now() - started,
+      unit: 'ms',
+    });
   });
 }

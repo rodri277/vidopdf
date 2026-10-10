@@ -1,7 +1,7 @@
 import { CONTACT_EMAIL } from './types';
 import type { LegalTexts } from './types';
 
-const UPDATED = 'October 9, 2026';
+const UPDATED = 'October 10, 2026';
 
 export const legalEn: LegalTexts = {
   privacy: {
@@ -24,7 +24,7 @@ export const legalEn: LegalTexts = {
         heading: 'What happens to your files',
         paragraphs: [
           'The files you choose are read with the browser’s normal features and processed in your computer’s memory, in Web Workers. The result is saved wherever you decide when you press “Save”.',
-          'No file is uploaded to a server or kept in the browser between visits: when you close or reload the tab, the workspace is gone. Because we never receive the content of your documents, we do not process it as personal data.',
+          'No file is uploaded to a server or kept in the browser between visits: when you close or reload the tab, the workspace is gone. The same goes for the passwords you type, signature pictures and form values: they live only in the tab’s memory and are not stored. Because we never receive the content of your documents, we do not process it as personal data.',
         ],
       },
       {
@@ -88,7 +88,13 @@ export const legalEn: LegalTexts = {
       {
         heading: 'Purpose',
         paragraphs: [
-          'Vidopdf is a PDF workspace that runs in your browser: it merges, splits, reorders, rotates and compresses PDFs and converts pictures to PDF and PDF to pictures, without sending files to any server.',
+          'Vidopdf is a PDF workspace that runs in your browser: it merges, splits, reorders, rotates, crops and compresses PDFs, numbers pages, adds headers, footers and watermarks, edits metadata and bookmarks, adds a visual signature, fills forms, puts a password on a file, and converts pictures to PDF and PDF to pictures, without sending files to any server.',
+        ],
+      },
+      {
+        heading: 'Visual signature',
+        paragraphs: [
+          'The “visual signature” is only a picture placed on the page. It is not an advanced or qualified electronic signature under the eIDAS Regulation and does not by itself carry the evidential value of one. The picture of your signature is not stored or sent anywhere.',
         ],
       },
       {
@@ -101,7 +107,9 @@ export const legalEn: LegalTexts = {
       {
         heading: 'Protected documents',
         paragraphs: [
-          'Vidopdf does not accept PDFs with a password or owner restrictions: it turns them down with a message and does not process them.',
+          'A password-protected PDF only opens if you type the password yourself; Vidopdf does not guess it, recover it or store it, and offers no way to remove protections.',
+          'If the author of a PDF limited what can be done with it (for example copying its content or printing), those restrictions are kept in the new file and cannot be changed from here.',
+          'You can protect the resulting file with a password and permissions (AES-256 encryption). If you forget it, there is no way to recover it.',
         ],
       },
       {
@@ -126,9 +134,10 @@ export const legalEn: LegalTexts = {
       {
         heading: 'Your documents',
         items: [
+          'The watermarks, stamps and signatures you add are your responsibility: you need the right to use what you stamp, and you must not pose as someone else.',
           'You must have the right to use and modify the documents you process, and you are responsible for what you do with them.',
           'Vidopdf never modifies your originals: it creates new files. Even so, always keep a copy of your originals.',
-          'Check the result before you use it. Compressing irreversibly lowers the quality of the pictures in the new file, and merging PDFs can lose bookmarks, accessibility tags or form links. The project’s README lists these limitations.',
+          'Check the result before you use it. Compressing irreversibly lowers the quality of the pictures in the new file, and merging PDFs can lose accessibility tags or internal links. Cropping hides what falls outside the page but does not delete it from the file: do not use it to hide confidential information. XFA forms, and text in scripts other than Latin, Cyrillic or Greek, are not supported in stamps and watermarks. The project’s README lists these limitations.',
         ],
       },
       {

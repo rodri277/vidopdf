@@ -42,22 +42,23 @@ Ports and adapters: a DOM-free `core`, adapters over `pdfjs-dist` and `@cantoo/p
 
 ## Measured
 
-2026-10-09, version 1.0.0, Apple M4 laptop, headless Chromium (and WebKit for the E2E). Reproduce with `pnpm bench`; the full table with every number is in [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
+2026-10-10, version 2.0.0 (release candidate), Apple M4 laptop, headless Chromium (and WebKit for the E2E). Reproduce with `pnpm bench`; the full table with every number is in [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
 
-| Metric                                             | Budget (SPEC)                 | Measured                                                                                                                   |
-| -------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Scroll of a 1000-page document                     | 60 fps, no task over 50 ms    | 60 fps, no frame over 20 ms, no long task (also with the main thread 4x slower)                                            |
-| Reorder, rotate or delete 1 to 1000 pages          | under 100 ms                  | about 31 ms painted (the work itself takes 0.1 to 1.8 ms)                                                                  |
-| Merge 20 files and 500 pages                       | no blocking, progress visible | 1.5 s, 29 to 33 progress steps, no long task                                                                               |
-| First thumbnails of a 1000-page document           | 1 s for 300 pages             | 0.3 to 0.4 s                                                                                                               |
-| Memory, 500 text pages / 500 scanned pages (97 MB) | measured and documented       | 0.5 GB / 1.1 GB, peak 1.3 GB exporting ([ADR 015](docs/adr/015-benchmarks-and-memory.md))                                  |
-| Warning for too much loaded PDF                    | adjusted with data            | 150 MB (was 250 MB)                                                                                                        |
-| Initial JavaScript                                 | 150 kB gzip                   | 107.3 kB                                                                                                                   |
-| `packages/core` coverage                           | 90 % lines                    | 99.6 %                                                                                                                     |
-| Tests                                              |                               | 192 core, 126 adapters, 150 web, 9 architecture rules, 9 benchmark helpers, 89 E2E in each of Chromium, WebKit and Firefox |
-| Lighthouse (desktop, local build)                  | 95 to 100                     | 100 / 100 / 100 / 100 on the workspace and on a legal page ([benchmarks/LIGHTHOUSE.md](benchmarks/LIGHTHOUSE.md))          |
-| Compression, median saving on photographic PDFs    | 40 % at "balanced"            | 96 % (synthetic corpus, see below)                                                                                         |
-| Compress 500 scanned pages (165 MB)                | measured and documented       | 42 % smaller in 18 s, renderer peak 1.8 GB                                                                                 |
+| Metric                                             | Budget (SPEC)                 | Measured                                                                                                                    |
+| -------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Scroll of a 1000-page document                     | 60 fps, no task over 50 ms    | 60 fps, no frame over 20 ms, no long task (also with the main thread 4x slower)                                             |
+| Reorder, rotate or delete 1 to 1000 pages          | under 100 ms                  | about 31 ms painted (the work itself takes 0.1 to 1.8 ms)                                                                   |
+| Merge 20 files and 500 pages                       | no blocking, progress visible | 1.5 s, 29 to 33 progress steps, no long task                                                                                |
+| First thumbnails of a 1000-page document           | 1 s for 300 pages             | 0.3 to 0.4 s                                                                                                                |
+| Memory, 500 text pages / 500 scanned pages (97 MB) | measured and documented       | 0.5 GB / 1.1 GB, peak 1.3 GB exporting ([ADR 015](docs/adr/015-benchmarks-and-memory.md))                                   |
+| Warning for too much loaded PDF                    | adjusted with data            | 150 MB (was 250 MB)                                                                                                         |
+| Initial JavaScript                                 | 150 kB gzip                   | 98.5 kB                                                                                                                     |
+| `packages/core` coverage                           | 90 % lines                    | 99.0 %                                                                                                                      |
+| Tests                                              |                               | 260 core, 172 adapters, 184 web, 9 architecture rules, 9 benchmark helpers, 133 E2E in each of Chromium, WebKit and Firefox |
+| Lighthouse (desktop, local build)                  | 95 to 100                     | 100 / 100 / 100 / 100 on the workspace and on a legal page ([benchmarks/LIGHTHOUSE.md](benchmarks/LIGHTHOUSE.md))           |
+| Compression, median saving on photographic PDFs    | 40 % at "balanced"            | 96 % (synthetic corpus, see below)                                                                                          |
+| Compress 500 scanned pages (165 MB)                | measured and documented       | 42 % smaller in 18 s, renderer peak 1.8 GB                                                                                  |
+| Export 500 pages with page numbers and a watermark | measured and documented       | 1.3 s (0.8 s without them)                                                                                                  |
 
 ## Compression, measured
 
@@ -75,12 +76,17 @@ The method and every number are in [ADR 004](docs/adr/004-compression-strategy.m
 
 - **Compression** only touches JPEG and lossless RGB or grey pictures at 8 bits, without masks or soft masks. It leaves alone CMYK, indexed and calibrated colour, pictures with an alpha channel, line art with few colours (JPEG would blur it), tiny pictures and JPEGs that are already thin. It does not touch fonts or structure, and the new pictures are JPEG: the loss is permanent in the new file (your original is never modified). The picture codec is the browser's canvas, tested in Chromium, WebKit and Firefox.
 
-- Encrypted PDFs, including those with only owner restrictions, are rejected in this version.
+- **Passwords.** A PDF that needs a password asks for it and opens only with the right one; there is no recovery and no way to remove protections. Restrictions set by a file's author (no copying, no printing) are kept in the output and cannot be changed here, even if you protect the result yourself. Your own protection is AES-256; if you forget the password it cannot be recovered. Passwords live in memory and are dropped after saving.
+- **Stamps and watermarks** (page numbers, headers, footers, watermarks) use the Inter font in Latin, Latin Extended, Cyrillic, Greek and Vietnamese. Text outside those scripts (for example Chinese, Japanese, Korean or Arabic) is refused by name instead of drawn wrong.
+- **Cropping hides, it does not delete:** what falls outside the new page is still in the file. The dialog says so; do not use it to hide confidential information.
+- **Visual signature** is a picture on the page, not an electronic signature in the sense of eIDAS; it carries no certificate. The picture is never stored or sent.
+- **Forms:** fields survive merging and can be filled or flattened. XFA forms are not supported, and values typed into fields are limited to the characters of the PDF standard font encoding (WinAnsi).
+- **Metadata** is what you type; nothing is added silently. Importing it from the loaded files is not built yet.
 - **Merging uses pdf-lib's `copyPages`, which loses some structure** (pinned by `merge-limits.test.ts`):
-  - bookmarks (the outline) are dropped;
-  - form fields stop being fillable: the widgets stay visible but the form definition is gone;
+  - bookmarks (the outline) are dropped by `copyPages` itself, so the writer rebuilds them from the files' own bookmarks;
+  - form fields would stop being fillable (the widgets stay but the form definition is gone), so the writer rebuilds the form from the widgets that were copied;
   - tagging (`/MarkInfo`, `/StructTreeRoot`) and the document language are dropped, so the output is less accessible to screen readers.
-- **Split by bookmarks** uses the bookmarks of the original files, because merging drops them; a page that is the target of a bookmark starts a new file.
+- **Split by bookmarks** uses the bookmarks of the original files; a page that is the target of a bookmark starts a new file.
 - **Split by maximum size** builds the real PDFs to measure them, so it takes seconds on big documents (5.4 s for 500 pages); a page that is over the limit on its own cannot be split and the dialog names it.
 - **Pictures in:** only JPEG and PNG (WebP and GIF are turned down). Mirrored EXIF orientations (2, 4, 5, 7) follow the standard table but were not checked against camera files.
 - **Pictures out:** WebP depends on the browser (Safari on macOS cannot write it, and the option is switched off with an explanation). Pages too large for the canvas budget are drawn at a lower resolution and you are told. A ZIP is built in memory.
