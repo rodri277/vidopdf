@@ -19,6 +19,7 @@ import {
   pdfError,
   redo,
   rotatePages,
+  setFields,
   selectAll,
   selectMany,
   selectOnly,
@@ -36,6 +37,7 @@ import type {
   ImageExportOptions,
   ImageFormat,
   ImagePageOptions,
+  MetadataSettings,
   OutlineEntry,
   PageGroup,
   PageRef,
@@ -43,6 +45,7 @@ import type {
   Session,
   SourceFile,
   SplitError,
+  Stamp,
   Workspace,
 } from '@vidopdf/core';
 import type {
@@ -113,10 +116,31 @@ export interface SessionDeps {
   readonly renderWorker: () => RenderWorkerApi;
   readonly save: (bytes: Uint8Array, name: string, mimeType: string) => Promise<void>;
   readonly newId: () => string;
+  /** Pixel size of a picture, or undefined if the browser cannot read it. */
+  readonly imageSize: (file: Blob) => Promise<{ width: number; height: number } | undefined>;
+  readonly objectUrl: (blob: Blob) => string;
+  readonly revokeUrl: (url: string) => void;
 }
 
 /** A4 in PDF points: the size of a page inserted without a reference. */
 const BLANK_SIZE = { width: 595, height: 842 } as const;
+
+/** A picture the user gave for a stamp or a signature. The bytes live in the export worker. */
+export interface AssetInfo {
+  readonly id: string;
+  readonly name: string;
+  readonly mime: 'image/png' | 'image/jpeg';
+  /** Height divided by width. */
+  readonly aspect: number;
+  /** Object URL for showing it in the interface. */
+  readonly url: string;
+}
+
+export type AssetProblem = 'unsupported' | 'unreadable';
+
+/** The stamps the simple forms manage, in the order they are drawn. */
+export const STAMP_ORDER = ['header', 'footer', 'pageNumber', 'watermark'] as const;
+export type StampSlot = (typeof STAMP_ORDER)[number];
 
 export interface SessionState {
   session: Session;
@@ -131,9 +155,15 @@ export interface SessionState {
   encodable: readonly ImageFormat[] | undefined;
   job: JobState;
   split: SplitPreview;
+  assets: Readonly<Record<string, AssetInfo>>;
   /** Applies to every PDF the app builds: the whole file, an extract and the parts of a split. */
   compression: CompressionChoice;
   setCompression: (choice: CompressionChoice) => void;
+  /** Sets or removes (null) the stamp of a slot; consecutive changes of one `field` are one undo step. */
+  setStamp: (slot: StampSlot, stamp: Stamp | null, field?: string) => void;
+  setMetadata: (metadata: MetadataSettings) => void;
+  addAsset: (file: File) => Promise<AssetInfo | AssetProblem>;
+  removeAsset: (id: string) => void;
   addFiles: (files: readonly File[]) => Promise<void>;
   addImages: (options: ImagePageOptions) => Promise<void>;
   discardImages: () => void;
@@ -386,7 +416,9 @@ export function createSessionStore(deps: SessionDeps) {
     const baseName = () => suggestedBaseName(workspace());
     const compressionOption = () => {
       const preset = presetOf(get().compression);
-      return preset === undefined ? {} : { compression: preset };
+      // The day of export, in the user's own calendar, for {date} in a stamp.
+      const date = new Date().toLocaleDateString('sv-SE');
+      return preset === undefined ? { date } : { compression: preset, date };
     };
 
     return {
@@ -399,9 +431,59 @@ export function createSessionStore(deps: SessionDeps) {
       job: { phase: 'idle' },
       split: { phase: 'idle' },
       compression: 'off',
+      assets: {},
 
       setCompression(compression) {
         set({ compression });
+      },
+
+      setStamp(slot, stamp, field) {
+        const others = workspace().stamps.filter((candidate) => candidate.id !== slot);
+        const stamps = (stamp === null ? others : [...others, { ...stamp, id: slot }]).sort(
+          (a, b) => STAMP_ORDER.indexOf(a.id as StampSlot) - STAMP_ORDER.indexOf(b.id as StampSlot),
+        );
+        // Only changes to the same field merge (typing one text); turning a stamp on or off never does.
+        run(
+          setFields(
+            'stamps',
+            { stamps },
+            field === undefined ? undefined : `stamp:${slot}:${field}`,
+          ),
+        );
+      },
+
+      setMetadata(metadata) {
+        run(setFields('metadata', { metadata }, 'metadata'));
+      },
+
+      async addAsset(file) {
+        const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
+        const kind = classifyFile(head, file.name, file.type);
+        if (kind.kind !== 'image') return 'unsupported';
+        const size = await deps.imageSize(file);
+        if (size === undefined || size.width === 0) return 'unreadable';
+        const id = deps.newId();
+        const bytes = await readFresh(file);
+        deps.exportWorker().registerAsset(id, transfer(bytes, [bytes.buffer]));
+        const info: AssetInfo = {
+          id,
+          name: file.name,
+          mime: kind.format === 'png' ? 'image/png' : 'image/jpeg',
+          aspect: size.height / size.width,
+          url: deps.objectUrl(file),
+        };
+        set((state) => ({ assets: { ...state.assets, [id]: info } }));
+        return info;
+      },
+
+      removeAsset(id) {
+        const info = get().assets[id];
+        if (info === undefined) return;
+        deps.revokeUrl(info.url);
+        deps.exportWorker().releaseAsset(id);
+        set((state) => ({
+          assets: Object.fromEntries(Object.entries(state.assets).filter(([key]) => key !== id)),
+        }));
       },
 
       async addFiles(files) {

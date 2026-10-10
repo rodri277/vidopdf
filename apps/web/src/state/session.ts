@@ -16,4 +16,18 @@ export const useSession = createSessionStore({
   renderWorker,
   save: (bytes, name, mimeType) => browserFileIO.save(bytes, name, mimeType),
   newId,
+  async imageSize(blob) {
+    try {
+      const bitmap = await createImageBitmap(blob);
+      const size = { width: bitmap.width, height: bitmap.height };
+      bitmap.close();
+      return size;
+    } catch {
+      return undefined;
+    }
+  },
+  objectUrl: (blob) => URL.createObjectURL(blob),
+  revokeUrl: (url) => {
+    URL.revokeObjectURL(url);
+  },
 });
