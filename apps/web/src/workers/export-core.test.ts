@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { unzipSync } from 'fflate';
 import { createCanvas } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
-import { ALL_ALLOWED, NO_METADATA, presets } from '@vidopdf/core';
+import { ALL_ALLOWED, NO_METADATA, defaultImagePageOptions, presets } from '@vidopdf/core';
 import type { Decorations, ExportPage, PageRef } from '@vidopdf/core';
 import type { SplitFinishing } from './api';
 import { createCompressor } from '@vidopdf/pdf-adapters';
@@ -277,7 +277,7 @@ describe('registerImage', () => {
           : canvas.toBuffer('image/webp');
     return new Uint8Array(buffer);
   };
-  const options = { paper: 'a4', orientation: 'auto', margin: 'small' } as const;
+  const options = defaultImagePageOptions;
 
   it('turns a picture into a source, hands back a separate copy, and exports it like any page', async () => {
     const core = await setup({});
@@ -345,11 +345,7 @@ describe('runPlan with compression', () => {
 
   async function withPicture() {
     const core = await setup({ a: 'mixed-sizes-3p.pdf' });
-    const made = await core.registerImage('img', heavyPicture(), {
-      paper: 'a4',
-      orientation: 'auto',
-      margin: 'small',
-    });
+    const made = await core.registerImage('img', heavyPicture(), defaultImagePageOptions);
     if (!made.ok) throw new Error('registerImage failed');
     return core;
   }

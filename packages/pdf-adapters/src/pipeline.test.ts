@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   bookmarksFromOutline,
+  defaultImagePageOptions,
   emptyWorkspace,
   buildSplitPlan,
   splitByBookmarks,
@@ -204,6 +205,7 @@ describe('PDF to images and back', () => {
   it('an image made into a PDF and merged with a PDF page renders like the original picture', async () => {
     const picture = quadrantImage(300, 200, 'png');
     const made = await writer.fromImage(picture, {
+      ...defaultImagePageOptions,
       paper: 'fit',
       orientation: 'auto',
       margin: 'none',

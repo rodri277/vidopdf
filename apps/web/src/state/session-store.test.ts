@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/unbound-method -- the mocks are asserted through the objects that hold them */
 import { describe, expect, it, vi } from 'vitest';
-import { NO_METADATA, err, ok, pdfError, presets, updateBookmark } from '@vidopdf/core';
+import {
+  NO_METADATA,
+  defaultImagePageOptions,
+  err,
+  ok,
+  pdfError,
+  presets,
+  updateBookmark,
+} from '@vidopdf/core';
 import type {
   ImageExportOptions,
   ImagePageOptions,
@@ -37,7 +45,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-const pageOptions: ImagePageOptions = { paper: 'a4', orientation: 'auto', margin: 'small' };
+const pageOptions: ImagePageOptions = defaultImagePageOptions;
 const imageOptions: ImageExportOptions = { format: 'png', dpi: 150, quality: 0.9 };
 
 function produced(changes: Partial<ProducedFile> = {}): ProducedFile {

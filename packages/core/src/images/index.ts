@@ -14,12 +14,27 @@ export {
   pixelSize,
 } from './export';
 export type { FittedResolution, ImageExportOptions, ImageFormat, PixelSize } from './export';
-export { MARGIN_POINTS, defaultImagePageOptions, placeImage } from './layout';
+export {
+  LOW_DPI,
+  MARGIN_POINTS,
+  MAX_PAGE_POINTS,
+  MIN_PAGE_POINTS,
+  defaultImagePageOptions,
+  effectiveDpi,
+  pageSizeProblem,
+  placeImage,
+} from './layout';
+export { LENGTH_UNITS, formatLength, fromPoints, toPoints } from './units';
+export type { LengthUnit } from './units';
+export { SIZE_PROBE_BYTES, shownImageSize, storedImageSize } from './size';
+export type { ImageSize } from './size';
 export type {
   ImagePageOptions,
   ImagePlacement,
   MarginChoice,
   OrientationChoice,
+  PageSize,
+  PageSizeProblem,
   PaperChoice,
 } from './layout';
 export { detectImageKind, isSupportedImage } from './detect';
