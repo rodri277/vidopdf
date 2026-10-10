@@ -75,12 +75,17 @@ El método y todos los números están en el [ADR 004](docs/adr/004-compression-
 
 - **La compresión** solo toca imágenes JPEG y sin pérdida en RGB o gris de 8 bits, sin máscaras ni máscaras suaves. Deja como están el color CMYK, indexado y calibrado, las imágenes con canal alfa, el dibujo de líneas con pocos colores (el JPEG lo emborronaría), las imágenes diminutas y los JPEG que ya son ligeros. No toca fuentes ni estructura, y las imágenes nuevas son JPEG: la pérdida es permanente en el archivo nuevo (tu original nunca se modifica). El códec de imágenes es el lienzo del navegador, probado en Chromium, WebKit y Firefox.
 
-- Los PDFs cifrados, incluidos los que solo tienen restricciones de propietario, se rechazan en esta versión.
+- **Contraseñas.** Un PDF que necesita contraseña la pide y solo se abre con la correcta; no hay recuperación ni forma de quitar protecciones. Las restricciones que puso el autor de un archivo (no copiar, no imprimir) se mantienen en el resultado y no se pueden cambiar aquí, aunque protejas tú el resultado. Tu protección es AES-256; si olvidas la contraseña no se puede recuperar. Las contraseñas viven en memoria y se descartan al guardar.
+- **Sellos y marcas de agua** (números de página, encabezados, pies, marcas de agua) usan la fuente Inter en latín, latín extendido, cirílico, griego y vietnamita. El texto de otros alfabetos (por ejemplo chino, japonés, coreano o árabe) se rechaza indicándolo, en lugar de dibujarse mal.
+- **Recortar oculta, no borra:** lo que queda fuera de la página nueva sigue en el archivo. El diálogo lo dice; no lo uses para ocultar información confidencial.
+- **La firma visual** es una imagen sobre la página, no una firma electrónica en el sentido de eIDAS; no lleva certificado. La imagen nunca se guarda ni se envía.
+- **Formularios:** los campos sobreviven a unir y se pueden rellenar o aplanar. Los formularios XFA no se admiten, y los valores escritos en los campos se limitan a los caracteres de la codificación estándar de fuentes del PDF (WinAnsi).
+- **Metadatos:** son lo que escribes; no se añade nada en silencio. Importarlos de los archivos cargados aún no está hecho.
 - **Unir usa `copyPages` de pdf-lib, que pierde parte de la estructura** (fijado por `merge-limits.test.ts`):
-  - se pierden los marcadores (el índice del documento);
-  - los campos de formulario dejan de ser rellenables: los widgets se ven, pero la definición del formulario desaparece;
+  - `copyPages` pierde los marcadores (el índice del documento), así que el escritor los reconstruye a partir de los de los propios archivos;
+  - los campos de formulario dejarían de ser rellenables (los widgets se ven, pero la definición del formulario desaparece), así que el escritor reconstruye el formulario a partir de los widgets copiados;
   - se pierde el etiquetado (`/MarkInfo`, `/StructTreeRoot`) y el idioma del documento, así que el resultado es menos accesible para lectores de pantalla.
-- **Dividir por marcadores** usa los marcadores de los archivos originales, porque unir los pierde; una página que es destino de un marcador abre un archivo nuevo.
+- **Dividir por marcadores** usa los marcadores de los archivos originales; una página que es destino de un marcador abre un archivo nuevo.
 - **Dividir por tamaño máximo** construye los PDFs de verdad para medirlos, así que tarda segundos con documentos grandes (5,4 s con 500 páginas); una página que por sí sola supera el límite no se puede dividir y el diálogo la nombra.
 - **Imágenes de entrada:** solo JPEG y PNG (WebP y GIF se rechazan). Las orientaciones EXIF con espejo (2, 4, 5, 7) siguen la tabla estándar pero no se han comprobado con archivos de cámara.
 - **Imágenes de salida:** WebP depende del navegador (Safari en macOS no puede escribirlo y la opción se apaga con una explicación). Las páginas demasiado grandes para el lienzo se dibujan con menos resolución y se avisa. El ZIP se construye en memoria.

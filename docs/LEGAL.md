@@ -28,14 +28,14 @@ Status: **done** (verified, with how), **owner** (only the owner can do it), **w
 
 ## Features of version 2
 
-| Feature          | Status   | Rule                                                                                                                                                                                    |
-| ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Passwords        | open     | Only with the password the user types; owner restrictions kept unless the owner password is given; no wording about removing protection (TRLPI arts. 160 to 162). See the next section. |
-| Visual signature | rule set | Called "visual signature"; notice on first use that it is not an advanced or qualified electronic signature (eIDAS). Never stored or sent.                                              |
-| Watermarks       | rule set | The user needs the right to what they stamp (terms). No detection or removal feature.                                                                                                   |
-| Cropping         | rule set | The dialog says that hidden content stays in the file.                                                                                                                                  |
-| Forms            | rule set | XFA is reported as unsupported (outside Adobe's patent grant for ISO 32000-1).                                                                                                          |
-| PDF patents      | done     | Adobe's public patent license for ISO 32000-1 covers royalty-free conforming implementations.                                                                                           |
+| Feature          | Status | Rule                                                                                                                                                                                                                                                                                             |
+| ---------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Passwords        | done   | Only with the password the user types; owner restrictions of a source are never lifted (the output keeps the intersection of the sources' permissions, with a random owner password nobody keeps); no wording about removing protection (TRLPI arts. 160 to 162). Export controls: next section. |
+| Visual signature | done   | Called "visual signature"; notice on first use that it is not an advanced or qualified electronic signature (eIDAS). Never stored or sent.                                                                                                                                                       |
+| Watermarks       | done   | The user needs the right to what they stamp (terms). No detection or removal feature.                                                                                                                                                                                                            |
+| Cropping         | done   | The dialog says that hidden content stays in the file.                                                                                                                                                                                                                                           |
+| Forms            | done   | XFA is reported as unsupported (outside Adobe's patent grant for ISO 32000-1).                                                                                                                                                                                                                   |
+| PDF patents      | done   | Adobe's public patent license for ISO 32000-1 covers royalty-free conforming implementations.                                                                                                                                                                                                    |
 
 ## Export controls on cryptography
 

@@ -4,7 +4,7 @@
 
 ## English
 
-_October 9, 2026_
+_October 10, 2026_
 
 ### In short
 
@@ -18,7 +18,7 @@ vidotho, the alias the developer uses for this project (see the Legal notice). C
 
 The files you choose are read with the browser’s normal features and processed in your computer’s memory, in Web Workers. The result is saved wherever you decide when you press “Save”.
 
-No file is uploaded to a server or kept in the browser between visits: when you close or reload the tab, the workspace is gone. Because we never receive the content of your documents, we do not process it as personal data.
+No file is uploaded to a server or kept in the browser between visits: when you close or reload the tab, the workspace is gone. The same goes for the passwords you type, signature pictures and form values: they live only in the tab’s memory and are not stored. Because we never receive the content of your documents, we do not process it as personal data.
 
 ### What your browser keeps
 
@@ -54,7 +54,7 @@ Vidopdf collects data from nobody, children included. If this policy changes, th
 
 ## Español
 
-_9 de octubre de 2026_
+_10 de octubre de 2026_
 
 ### En pocas palabras
 
@@ -68,7 +68,7 @@ vidotho, alias con el que la persona desarrolladora firma este proyecto (consult
 
 Los archivos que eliges se leen con las funciones normales del navegador y se procesan en la memoria de tu equipo, en trabajadores web (Web Workers). El resultado se guarda donde tú decidas al pulsar «Guardar».
 
-Ningún archivo se sube a un servidor ni se guarda en el navegador entre una visita y otra: al cerrar o recargar la pestaña, el espacio de trabajo desaparece. Como nunca recibimos el contenido de tus documentos, no lo tratamos como datos personales.
+Ningún archivo se sube a un servidor ni se guarda en el navegador entre una visita y otra: al cerrar o recargar la pestaña, el espacio de trabajo desaparece. Lo mismo vale para las contraseñas que escribas, las imágenes de firma y los valores de formularios: solo viven en la memoria de la pestaña y no se guardan. Como nunca recibimos el contenido de tus documentos, no lo tratamos como datos personales.
 
 ### Lo que guarda tu navegador
 
