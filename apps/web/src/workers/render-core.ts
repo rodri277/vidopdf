@@ -36,10 +36,17 @@ export function createRenderCore(deps: RenderCoreDeps) {
   const requests = new Map<number, AbortController>();
   const jobs = new Map<number, AbortController>();
 
-  async function open(sourceId: string, bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>> {
+  async function open(
+    sourceId: string,
+    bytes: Uint8Array,
+    password?: string,
+  ): Promise<Result<PdfInfo, PdfError>> {
     const renderer = deps.createRenderer();
     // The bytes were moved here for this document alone, so pdf.js can have them without a copy.
-    const opened = await renderer.open(bytes, { takeOwnership: true });
+    const opened = await renderer.open(bytes, {
+      takeOwnership: true,
+      ...(password === undefined ? {} : { password }),
+    });
     if (opened.ok) documents.set(sourceId, renderer);
     else await renderer.close();
     return opened;

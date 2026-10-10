@@ -84,7 +84,9 @@ test.describe('by ranges', () => {
     await expect(dialog).toContainText('vidopdf_p1-2.pdf: 2 páginas');
     await expect(dialog).toContainText('vidopdf_rest.pdf: 2 páginas');
 
-    await dialog.getByRole('checkbox').uncheck();
+    await dialog
+      .getByRole('checkbox', { name: /Reunir las páginas que no estén en ningún rango/ })
+      .uncheck();
     await expect(dialog.getByRole('heading', { name: 'Se crearán 2 archivos' })).toBeVisible();
     await expect(dialog).toContainText('Páginas que no están en ningún rango: 3-4');
 

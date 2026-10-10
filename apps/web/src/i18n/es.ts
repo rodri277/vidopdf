@@ -250,7 +250,9 @@ export const es = {
   errors: {
     empty: '{{name}}: el archivo está vacío o no tiene páginas.',
     corrupt: '{{name}}: no se pudo leer; está dañado o no es un PDF.',
-    encrypted: '{{name}}: está protegido con contraseña o restricciones y todavía no se admite.',
+    encrypted: '{{name}}: no se abrió porque está protegido con contraseña.',
+    passwordRequired: '{{name}}: necesita una contraseña para abrirse.',
+    wrongPassword: '{{name}}: esa contraseña no es la correcta.',
     unsupported: '{{name}}: este tipo de PDF no se admite.',
     cancelled: 'Operación cancelada.',
     internal: '{{name}}: error inesperado. Prueba con otro archivo.',
@@ -451,6 +453,36 @@ export const es = {
         unreadable: 'No se pudo leer esa imagen.',
       },
     },
+  },
+  protect: {
+    legend: 'Proteger con contraseña',
+    enable: 'Poner una contraseña al archivo',
+    inherited:
+      'Alguno de los archivos cargados tiene restricciones de su autor (por ejemplo, no imprimir o no copiar). Se conservan en el archivo nuevo y no se pueden cambiar desde aquí.',
+    password: 'Contraseña para abrirlo',
+    confirm: 'Repite la contraseña',
+    mismatch: 'Las dos contraseñas no coinciden.',
+    allow: 'Qué se permite hacer a quien lo abra',
+    permissions: {
+      print: 'Imprimir',
+      copy: 'Copiar el contenido',
+      modify: 'Modificar el documento',
+      annotate: 'Añadir comentarios',
+    },
+    owner: 'Contraseña de permisos (opcional)',
+    ownerHint:
+      'Con ella se pueden cambiar más adelante los permisos de arriba. Si la dejas vacía, nadie podrá cambiarlos.',
+    lost: 'Si olvidas la contraseña no hay forma de recuperarla: Vidopdf no la guarda en ningún sitio.',
+    readyPassword: 'El archivo pedirá la contraseña para abrirse.',
+    readyInherited: 'Se han conservado las restricciones que tenían los archivos originales.',
+  },
+  password: {
+    title: 'Este archivo está protegido con contraseña',
+    hint: 'Escribe la contraseña para abrirlo. Solo se usa para esto, no se guarda y no sale de tu dispositivo.',
+    label: 'Contraseña',
+    wrong: 'Esa contraseña no es la correcta. Prueba otra vez.',
+    skip: 'No abrirlo',
+    open: 'Abrir',
   },
   crash: {
     title: 'Algo ha fallado',

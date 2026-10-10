@@ -3,6 +3,7 @@ import type {
   Decorations,
   EditsByPage,
   FormInfo,
+  ProtectChoice,
   EncodedImage,
   ExportPage,
   ImageExportOptions,
@@ -23,6 +24,8 @@ export interface PlannedOutput {
   readonly pages: readonly ExportPage[];
   /** Recompress the pictures of the built PDF with this preset. */
   readonly compression?: CompressionPreset;
+  /** What the user chose for protecting the result; the restrictions of the sources are added by the worker. */
+  readonly protect?: ProtectChoice;
   /** Stamps, metadata, bookmarks and form values to apply while the pages are assembled. */
   readonly decorations?: Decorations;
 }
@@ -31,9 +34,19 @@ export interface PlannedOutput {
 export interface SplitFinishing {
   readonly decorations: Decorations;
   readonly edits: EditsByPage;
+  /** The files will be protected, which adds a little to their size. */
+  readonly protect?: boolean;
 }
 
 /** What compression did to a finished download, so the dialog can show it before saving. */
+/** How a finished download is protected. */
+export interface ProtectionSummary {
+  /** The result needs a password to be opened. */
+  readonly needsPassword: boolean;
+  /** Some restrictions came from the files it was made from and are kept. */
+  readonly inheritedRestrictions: boolean;
+}
+
 export interface CompressionSummary {
   /** Size of the files as they were assembled, before compression. */
   readonly bytesBefore: number;
@@ -56,6 +69,8 @@ export interface ProducedFile {
   readonly cappedPages: number;
   /** Present when the job asked for compression. */
   readonly compression?: CompressionSummary;
+  /** Present when the result is protected, by choice or because its sources were restricted. */
+  readonly protection?: ProtectionSummary;
 }
 
 /** A group of consecutive pages found by the size split: indices into the pages given, inclusive. */
@@ -82,7 +97,12 @@ export type ImageJobPage =
 /** Contract of the render worker (pdf.js). Only data crosses the boundary. */
 export interface RenderWorkerApi {
   /** Opens a document and keeps it for later renders. Takes ownership of `bytes`. */
-  open(sourceId: string, bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>>;
+  open(
+    sourceId: string,
+    bytes: Uint8Array,
+    /** The password of a protected file, typed by the user. */
+    password?: string,
+  ): Promise<Result<PdfInfo, PdfError>>;
   /** Draws one page. `requestId` lets the caller cancel it; a cancelled render fails with kind `cancelled`. */
   render(
     requestId: number,
@@ -110,7 +130,12 @@ export interface RenderWorkerApi {
 /** Contract of the export worker (pdf-lib). It owns the source bytes once they are registered. */
 export interface ExportWorkerApi {
   /** Checks the file and, if it is usable, keeps its bytes. Takes ownership of `bytes`. */
-  register(sourceId: string, bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>>;
+  register(
+    sourceId: string,
+    bytes: Uint8Array,
+    /** The password of a protected file, typed by the user; kept in memory until the file is released. */
+    password?: string,
+  ): Promise<Result<PdfInfo, PdfError>>;
   /**
    * Turns a JPEG or PNG into a one-page PDF and keeps it as a source. Returns a copy of the PDF
    * for the render worker. Takes ownership of `bytes`.

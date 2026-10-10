@@ -1,11 +1,13 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unzipSync } from 'fflate';
 import { createCanvas } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
-import { NO_METADATA, presets } from '@vidopdf/core';
+import { ALL_ALLOWED, NO_METADATA, presets } from '@vidopdf/core';
 import type { Decorations, ExportPage, PageRef } from '@vidopdf/core';
 import type { SplitFinishing } from './api';
 import { createCompressor } from '@vidopdf/pdf-adapters';
@@ -42,6 +44,7 @@ async function setup(
 ) {
   const core = createExportCore({
     writer: createPdfLibWriter({ fonts: nodeFonts }),
+    randomPassword: () => 'random-owner-password-0001',
     compressor: createCompressor(nodeCodec),
     createZip: () => createZipBuilder(),
   });
@@ -55,7 +58,7 @@ async function setup(
 const ignore = () => undefined;
 
 describe('register', () => {
-  it('keeps usable files and refuses damaged or protected ones without keeping them', async () => {
+  it('keeps usable files and refuses damaged ones and ones that need a password, without keeping them', async () => {
     const core = await setup({});
     expect(await core.register('ok', fixture('single-1p.pdf'))).toEqual({
       ok: true,
@@ -65,10 +68,20 @@ describe('register', () => {
       ok: false,
       error: { kind: 'corrupt' },
     });
-    expect(await core.register('locked', fixture('encrypted-owner-restricted.pdf'))).toMatchObject({
-      ok: false,
-      error: { kind: 'encrypted' },
+    // A file that only restricts what readers may do opens like in any viewer: its restrictions are kept on export.
+    expect(
+      await core.register('restricted', fixture('encrypted-owner-restricted.pdf')),
+    ).toMatchObject({
+      ok: true,
+      value: { restrictions: -3904 },
     });
+    expect(await core.register('locked', fixture('encrypted-user-password.pdf'))).toMatchObject({
+      ok: false,
+      error: { kind: 'passwordRequired' },
+    });
+    expect(
+      await core.runPlan(1, [{ name: 'x.pdf', pages: [original('locked', 0)] }], 'x.zip', ignore),
+    ).toMatchObject({ ok: false }); // not kept, so it cannot be built
     const result = await core.runPlan(
       1,
       [{ name: 'x.pdf', pages: [original('bad', 0)] }],
@@ -485,5 +498,140 @@ describe('runPlan with decorations', () => {
       ignore,
     );
     expect(result).toMatchObject({ ok: false, error: { kind: 'unsupported' } });
+  });
+});
+
+describe('protected files', () => {
+  const qpdfShow = (bytes: Uint8Array, password = ''): string => {
+    const file = join(mkdtempSync(join(tmpdir(), 'export-core-')), 'x.pdf');
+    writeFileSync(file, bytes);
+    try {
+      return execFileSync('qpdf', ['--show-encryption', `--password=${password}`, file], {
+        encoding: 'utf8',
+        stdio: 'pipe',
+      });
+    } catch (error) {
+      return (error as { stdout?: string }).stdout ?? '';
+    }
+  };
+  const first = (sourceId: string) => [original(sourceId, 0)];
+
+  it('asks for the password of a locked file, and opens it with the right one', async () => {
+    const core = await setup({});
+    expect(await core.register('l', fixture('encrypted-user-password.pdf'))).toMatchObject({
+      ok: false,
+      error: { kind: 'passwordRequired' },
+    });
+    expect(await core.register('l', fixture('encrypted-user-password.pdf'), 'wrong')).toMatchObject(
+      {
+        ok: false,
+        error: { kind: 'wrongPassword' },
+      },
+    );
+    const opened = await core.register('l', fixture('encrypted-user-password.pdf'), 'fixture-user');
+    expect(opened.ok).toBe(true);
+    const result = await core.runPlan(1, [{ name: 'out.pdf', pages: first('l') }], 'x.zip', ignore);
+    if (!result.ok) throw new Error(result.error.kind);
+    expect(result.value.protection).toBeDefined(); // its restrictions came along
+  });
+
+  it('keeps the restrictions of a restricted file on the result, and the result still opens', async () => {
+    const core = await setup({ r: 'encrypted-owner-restricted.pdf' });
+    const result = await core.runPlan(2, [{ name: 'out.pdf', pages: first('r') }], 'x.zip', ignore);
+    if (!result.ok) throw new Error(result.error.kind);
+    expect(result.value.protection).toEqual({ needsPassword: false, inheritedRestrictions: true });
+    const shown = qpdfShow(result.value.bytes);
+    expect(shown).toContain('R = 6');
+    expect(shown).toMatch(/extract for any purpose: not allowed/);
+    expect(shown).toMatch(/print high resolution: not allowed/);
+  });
+
+  it('a restricted source stays restricted even when it is merged with free ones', async () => {
+    const core = await setup({ r: 'encrypted-owner-restricted.pdf', a: 'mixed-sizes-3p.pdf' });
+    const result = await core.runPlan(
+      3,
+      [{ name: 'out.pdf', pages: [original('a', 0), original('r', 0)] }],
+      'x.zip',
+      ignore,
+    );
+    if (!result.ok) throw new Error(result.error.kind);
+    expect(qpdfShow(result.value.bytes)).toMatch(/extract for any purpose: not allowed/);
+  });
+
+  it('never uses the owner password the user typed when the restrictions are inherited', async () => {
+    const core = await setup({ r: 'encrypted-owner-restricted.pdf' });
+    const result = await core.runPlan(
+      4,
+      [
+        {
+          name: 'out.pdf',
+          pages: first('r'),
+          protect: {
+            userPassword: 'open',
+            ownerPassword: 'typed-by-the-user',
+            permissions: ALL_ALLOWED,
+          },
+        },
+      ],
+      'x.zip',
+      ignore,
+    );
+    if (!result.ok) throw new Error(result.error.kind);
+    expect(qpdfShow(result.value.bytes, 'open')).toContain('User password = open');
+    // The password the user typed does not give owner rights on this result.
+    expect(qpdfShow(result.value.bytes, 'typed-by-the-user')).not.toContain('owner password');
+    expect(qpdfShow(result.value.bytes, 'random-owner-password-0001')).toContain('owner password');
+  });
+
+  it('protects an unrestricted result only when asked to, with the open password and permissions given', async () => {
+    const core = await setup({ a: 'mixed-sizes-3p.pdf' });
+    const plain = await core.runPlan(5, [{ name: 'out.pdf', pages: first('a') }], 'x.zip', ignore);
+    expect(plain.ok && plain.value.protection).toBeUndefined();
+    const locked = await core.runPlan(
+      6,
+      [
+        {
+          name: 'out.pdf',
+          pages: first('a'),
+          protect: { userPassword: 'secret', permissions: { ...ALL_ALLOWED, copy: false } },
+        },
+      ],
+      'x.zip',
+      ignore,
+    );
+    if (!locked.ok) throw new Error(locked.error.kind);
+    expect(locked.value.protection).toEqual({ needsPassword: true, inheritedRestrictions: false });
+    expect(qpdfShow(locked.value.bytes)).toContain('Incorrect password');
+    expect(qpdfShow(locked.value.bytes, 'secret')).toMatch(/extract for any purpose: not allowed/);
+  });
+
+  it('measures splits with the protection on, so a protected file is not larger than measured', async () => {
+    const core = await setup({ a: 'mixed-sizes-3p.pdf' });
+    const pages = range('a', 3).map((page, index) => ({
+      kind: 'original' as const,
+      id: `p${String(index)}`,
+      sourceId: 'a',
+      sourceIndex: index,
+      rotation: 0 as const,
+      ...(page.kind === 'original' ? {} : {}),
+    }));
+    const size = async (protect?: boolean) => {
+      const spans = await core.splitBySize(9, pages, 10_000_000, ignore, {
+        decorations: {
+          stamps: [],
+          fileName: 'm.pdf',
+          date: '',
+          metadata: NO_METADATA,
+          bookmarks: [],
+          forms: {},
+          formMode: 'keep',
+        },
+        edits: {},
+        ...(protect === true ? { protect } : {}),
+      });
+      if (!spans.ok) throw new Error('measure failed');
+      return spans.value[0]?.size ?? 0;
+    };
+    expect(await size(true)).toBeGreaterThan(await size());
   });
 });

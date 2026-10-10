@@ -251,7 +251,9 @@ export const en: Widen<typeof es> = {
   errors: {
     empty: '{{name}}: the file is empty or has no pages.',
     corrupt: "{{name}}: couldn't be read; it is damaged or not a PDF.",
-    encrypted: '{{name}}: is protected by a password or restrictions, which is not supported yet.',
+    encrypted: '{{name}}: it was not opened because it is protected with a password.',
+    passwordRequired: '{{name}}: it needs a password to be opened.',
+    wrongPassword: '{{name}}: that password is not the right one.',
     unsupported: "{{name}}: this kind of PDF isn't supported.",
     cancelled: 'Operation cancelled.',
     internal: '{{name}}: unexpected error. Try another file.',
@@ -451,6 +453,36 @@ export const en: Widen<typeof es> = {
         unreadable: 'That picture could not be read.',
       },
     },
+  },
+  protect: {
+    legend: 'Protect with a password',
+    enable: 'Put a password on the file',
+    inherited:
+      'Some of the loaded files have restrictions set by their author (for example, no printing or no copying). They are kept in the new file and cannot be changed from here.',
+    password: 'Password to open it',
+    confirm: 'Repeat the password',
+    mismatch: 'The two passwords do not match.',
+    allow: 'What whoever opens it may do',
+    permissions: {
+      print: 'Print',
+      copy: 'Copy the content',
+      modify: 'Modify the document',
+      annotate: 'Add comments',
+    },
+    owner: 'Permissions password (optional)',
+    ownerHint:
+      'It lets the permissions above be changed later. If you leave it empty, nobody will be able to change them.',
+    lost: 'If you forget the password there is no way to recover it: Vidopdf does not keep it anywhere.',
+    readyPassword: 'The file will ask for the password to open.',
+    readyInherited: 'The restrictions the original files had were kept.',
+  },
+  password: {
+    title: 'This file is protected with a password',
+    hint: 'Type the password to open it. It is only used for this, it is not stored and it does not leave your device.',
+    label: 'Password',
+    wrong: 'That password is not the right one. Try again.',
+    skip: 'Do not open it',
+    open: 'Open',
   },
   crash: {
     title: 'Something went wrong',

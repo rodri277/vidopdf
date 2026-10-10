@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useSession } from '../state/session';
+import { protectIncomplete } from '../state/session-store';
 import { splitHereDraft } from '../state/split';
 import { useUi } from '../state/ui-store';
 import { deleteSelection, duplicateSelection, insertBlankPage, rotateSelection } from './actions';
@@ -10,6 +11,7 @@ export function ContextPanel() {
   const count = workspace.selection.length;
   const exporting = useSession((state) => state.job.phase !== 'idle');
   const { extractSelection } = useSession.getState();
+  const incomplete = useSession((state) => protectIncomplete(state.protect));
   const { openExport, openCrop, openSign } = useUi.getState();
   // "Split here" cuts after the last selected page; with that page last there is nothing to cut.
   const lastSelected =
@@ -58,7 +60,12 @@ export function ContextPanel() {
             <button type="button" className="btn" disabled={!canCrop} onClick={openSign}>
               {t('panel.sign')}
             </button>
-            <button type="button" className="btn" onClick={() => void extractSelection()}>
+            <button
+              type="button"
+              className="btn"
+              disabled={incomplete}
+              onClick={() => void extractSelection()}
+            >
               {t('panel.extract')}
             </button>
             <button
