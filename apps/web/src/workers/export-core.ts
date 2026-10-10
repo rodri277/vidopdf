@@ -1,6 +1,7 @@
 import { err, ok, pdfError, splitBySize, toExportPage } from '@vidopdf/core';
 import type {
   CompressionOptions,
+  FormInfo,
   Compressor,
   ImagePageOptions,
   PageRef,
@@ -63,6 +64,13 @@ export function createExportCore(deps: ExportCoreDeps) {
 
   function release(sourceId: string): void {
     sources.delete(sourceId);
+  }
+
+  async function readForm(sourceId: string): Promise<Result<FormInfo, PdfError>> {
+    const bytes = sources.get(sourceId);
+    return bytes === undefined
+      ? err(pdfError('internal', `unknown source ${sourceId}`))
+      : deps.writer.readForm(bytes);
   }
 
   function registerAsset(assetId: string, bytes: Uint8Array): void {
@@ -252,6 +260,7 @@ export function createExportCore(deps: ExportCoreDeps) {
     register,
     registerImage,
     release,
+    readForm,
     registerAsset,
     releaseAsset,
     runPlan,

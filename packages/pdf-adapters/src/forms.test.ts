@@ -106,6 +106,7 @@ describe('filling the form', () => {
       decorations({ forms: { a: { full_name: 'Ana Pérez' } }, formMode: 'flatten' }),
     );
     expect(await fieldsOf(out)).toEqual([]);
+    expect(Buffer.from(out).toString('latin1')).not.toContain('/AcroForm');
     const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
     const doc = await getDocument({
       data: out.slice(),

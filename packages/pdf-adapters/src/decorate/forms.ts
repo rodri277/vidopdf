@@ -203,6 +203,10 @@ export async function applyForms(
   }
   const font = await output.embedFont(StandardFonts.Helvetica);
   form.updateFieldAppearances(font);
-  if (deco.formMode === 'flatten') form.flatten();
+  if (deco.formMode === 'flatten') {
+    form.flatten();
+    // Flattening empties the list of fields but leaves the form dictionary behind.
+    output.catalog.delete(PDFName.of('AcroForm'));
+  }
   return undefined;
 }

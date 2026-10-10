@@ -150,7 +150,7 @@ function Ready({ job }: { job: Extract<JobState, { phase: 'ready' }> }) {
 function Failed({ job }: { job: Extract<JobState, { phase: 'failed' }> }) {
   const { t } = useTranslation();
   const { dismissJob } = useSession.getState();
-  const { text, detail } = failureMessage(t, job.failure);
+  const { text, detail } = failureMessage(t, job.failure, job.job);
   return (
     <>
       <p role="alert">{text}</p>

@@ -78,6 +78,7 @@ function setup(
       Promise.resolve(ok({ info: { pageCount: 1 }, pdf: new Uint8Array([9]) })),
     ),
     release: vi.fn(),
+    readForm: vi.fn(() => Promise.resolve(ok({ fields: [], hasXfa: false, skipped: 0 }))),
     registerAsset: vi.fn(),
     releaseAsset: vi.fn(),
     runPlan: vi.fn(() => Promise.resolve(ok(produced()))),
@@ -934,5 +935,64 @@ describe('signatures', () => {
     const pages = vi.mocked(ctx.exportWorker.runPlan).mock.calls.at(-1)?.[1][0]?.pages;
     expect(pages?.[0]).toMatchObject({ overlays: [{ assetId: 'sig', x: 0.5 }] });
     expect(pages?.[1]).not.toHaveProperty('overlays');
+  });
+});
+
+describe('forms', () => {
+  const info = {
+    fields: [
+      {
+        name: 'full_name',
+        kind: 'text' as const,
+        value: 'Ada',
+        options: [],
+        readOnly: false,
+        multiline: false,
+      },
+    ],
+    hasXfa: false,
+    skipped: 0,
+  };
+
+  it('reads the fields of each loaded file once, and goes on when one cannot be read', async () => {
+    let calls = 0;
+    const ctx = setup({
+      exportWorker: {
+        readForm: vi.fn(() => {
+          calls++;
+          return calls === 1 ? Promise.reject(new Error('gone')) : Promise.resolve(ok(info));
+        }),
+      },
+    });
+    await load(ctx, pdf('three.pdf'), pdf('one.pdf'));
+    await ctx.store.getState().loadForms();
+    expect(Object.keys(ctx.store.getState().forms)).toHaveLength(1);
+    await ctx.store.getState().loadForms(); // the one that failed is tried again, the other is not
+    expect(ctx.exportWorker.readForm).toHaveBeenCalledTimes(3);
+  });
+
+  it('keeps what is typed per file and field, one undo step per field, and sends it with the export', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    const source = ws(ctx).sources[0]?.id ?? '';
+    for (const value of ['A', 'Ad', 'Ada'])
+      ctx.store.getState().setFormValue(source, 'full_name', value);
+    ctx.store.getState().setFormValue(source, 'accept', true);
+    expect(ws(ctx).forms[source]).toEqual({ full_name: 'Ada', accept: true });
+    ctx.store.getState().setFormMode('flatten');
+    await ctx.store.getState().startExport();
+    await vi.waitFor(() => {
+      expect(ctx.exportWorker.runPlan).toHaveBeenCalled();
+    });
+    const deco = vi.mocked(ctx.exportWorker.runPlan).mock.calls.at(-1)?.[1][0]?.decorations;
+    expect(deco).toMatchObject({
+      formMode: 'flatten',
+      forms: { [source]: { full_name: 'Ada', accept: true } },
+    });
+    ctx.store.getState().undo(); // the mode
+    ctx.store.getState().undo(); // the checkbox
+    expect(ws(ctx).forms[source]).toEqual({ full_name: 'Ada' });
+    ctx.store.getState().undo(); // the three keystrokes together
+    expect(ws(ctx).forms).toEqual({});
   });
 });

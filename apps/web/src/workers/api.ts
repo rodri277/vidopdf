@@ -2,6 +2,7 @@ import type {
   CompressionPreset,
   Decorations,
   EditsByPage,
+  FormInfo,
   EncodedImage,
   ExportPage,
   ImageExportOptions,
@@ -126,6 +127,8 @@ export interface ExportWorkerApi {
    */
   registerAsset(assetId: string, bytes: Uint8Array): void;
   releaseAsset(assetId: string): void;
+  /** The fields of the form of a registered file, to offer a way to fill them. */
+  readForm(sourceId: string): Promise<Result<FormInfo, PdfError>>;
   /** Builds the files of a plan: one PDF, or a ZIP when there are several. */
   runPlan(
     jobId: number,

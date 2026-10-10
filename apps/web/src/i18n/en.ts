@@ -109,6 +109,8 @@ export const en: Widen<typeof es> = {
     readyHint: 'Check the size and save the file whenever you like.',
     failed: 'It could not be finished. None of your files changed.',
     failedUnsupported: 'This browser cannot create that image format. Try PNG or JPEG.',
+    failedContent:
+      'Some text or a picture you added could not be written into the PDF. See the technical detail to know which.',
     failedDetail: 'Technical detail: {{detail}}',
     save: 'Save',
     back: 'Back',
@@ -272,6 +274,7 @@ export const en: Widen<typeof es> = {
     tabs: {
       numbering: 'Numbering and text',
       watermark: 'Watermark',
+      forms: 'Forms',
       bookmarks: 'Bookmarks',
       metadata: 'Information',
     },
@@ -326,6 +329,16 @@ export const en: Widen<typeof es> = {
         ROMAN: 'I, II, III',
         custom: 'Custom',
       },
+    },
+    forms: {
+      title: 'Forms',
+      none: 'None of the loaded files has a form.',
+      xfa: '{{names}}: it also carries an XFA form, which is not supported. The normal fields are kept and the XFA is dropped.',
+      skipped_one: 'One field (a button or a digital signature) cannot be filled here.',
+      skipped_other: '{{count}} fields (buttons or digital signatures) cannot be filled here.',
+      flatten:
+        'Flatten when exporting: the typed text stays on the page and the fields can no longer be edited',
+      hint: 'What you type is saved in the new file; the original does not change. Fields take Western European letters. If two files have a field with the same name, the second is renamed so they do not share a value.',
     },
     bookmarks: {
       legend: 'Bookmarks',

@@ -15,6 +15,7 @@ const core = createExportCore({
 const api: ExportWorkerApi = {
   register: core.register,
   release: core.release,
+  readForm: core.readForm,
   releaseAsset: core.releaseAsset,
   registerAsset: core.registerAsset,
   cancelJob: core.cancelJob,

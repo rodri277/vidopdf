@@ -39,6 +39,9 @@ import type {
   BookmarkNode,
   Command,
   ExportOptions,
+  FormInfo,
+  FormMode,
+  FormValue,
   CompressionPreset,
   ExportPlan,
   ImageExportOptions,
@@ -165,6 +168,8 @@ export interface SessionState {
   job: JobState;
   split: SplitPreview;
   assets: Readonly<Record<string, AssetInfo>>;
+  /** The fields of each loaded file's form, read on demand. */
+  forms: Readonly<Record<string, FormInfo>>;
   /** Applies to every PDF the app builds: the whole file, an extract and the parts of a split. */
   compression: CompressionChoice;
   setCompression: (choice: CompressionChoice) => void;
@@ -180,6 +185,11 @@ export interface SessionState {
   ) => void;
   /** Starts a hand-made tree from the bookmarks of the loaded files. */
   importBookmarks: () => Promise<void>;
+  /** Reads the form fields of the loaded files that have not been read yet. */
+  loadForms: () => Promise<void>;
+  /** Sets what is typed in one field of one file; typing in one field is one undo step. */
+  setFormValue: (sourceId: string, name: string, value: FormValue) => void;
+  setFormMode: (mode: FormMode) => void;
   /** Puts a signature picture on a page, or moves or resizes one that is there (dragging is one undo step). */
   placeSignature: (pageId: string, overlay: Overlay) => void;
   removeSignature: (pageId: string, overlayId: string) => void;
@@ -494,6 +504,7 @@ export function createSessionStore(deps: SessionDeps) {
       split: { phase: 'idle' },
       compression: 'off',
       assets: {},
+      forms: {},
 
       setCompression(compression) {
         set({ compression });
@@ -533,6 +544,31 @@ export function createSessionStore(deps: SessionDeps) {
         const nodes = change(current.nodes);
         const mergeKey = field === undefined ? undefined : `bookmarks:${field}`;
         run(setFields('bookmarks', { bookmarks: { mode: 'custom', nodes } }, mergeKey));
+      },
+
+      async loadForms() {
+        const missing = workspace().sources.filter(
+          (source) => get().forms[source.id] === undefined,
+        );
+        const read = await Promise.all(
+          missing.map(async (source) => {
+            const info = await deps.exportWorker().readForm(source.id).catch(failedOutright);
+            return info.ok ? ([source.id, info.value] as const) : undefined;
+          }),
+        );
+        const found: Record<string, FormInfo> = {};
+        for (const entry of read) if (entry !== undefined) found[entry[0]] = entry[1];
+        set((state) => ({ forms: { ...state.forms, ...found } }));
+      },
+
+      setFormValue(sourceId, name, value) {
+        const current = workspace().forms;
+        const forms = { ...current, [sourceId]: { ...current[sourceId], [name]: value } };
+        run(setFields('forms', { forms }, `form:${sourceId}:${name}`));
+      },
+
+      setFormMode(formMode) {
+        run(setFields('forms', { formMode }));
       },
 
       placeSignature(pageId, overlay) {

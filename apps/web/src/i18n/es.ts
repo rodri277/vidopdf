@@ -108,6 +108,8 @@ export const es = {
     failed: 'No se pudo terminar. Ninguno de tus archivos ha cambiado.',
     failedUnsupported:
       'Este navegador no puede crear ese formato de imagen. Prueba con PNG o JPEG.',
+    failedContent:
+      'Un texto o una imagen que has añadido no se pudo escribir en el PDF. Mira el detalle técnico para saber cuál.',
     failedDetail: 'Detalle técnico: {{detail}}',
     save: 'Guardar',
     back: 'Volver',
@@ -271,6 +273,7 @@ export const es = {
     tabs: {
       numbering: 'Numeración y textos',
       watermark: 'Marca de agua',
+      forms: 'Formularios',
       bookmarks: 'Marcadores',
       metadata: 'Información',
     },
@@ -325,6 +328,17 @@ export const es = {
         ROMAN: 'I, II, III',
         custom: 'Personalizado',
       },
+    },
+    forms: {
+      title: 'Formularios',
+      none: 'Ninguno de los archivos cargados tiene formulario.',
+      xfa: '{{names}}: además lleva un formulario XFA, que no se admite. Se conservan los campos normales y el XFA se descarta.',
+      skipped_one: 'Hay un campo (un botón o una firma digital) que no se puede rellenar aquí.',
+      skipped_other:
+        'Hay {{count}} campos (botones o firmas digitales) que no se pueden rellenar aquí.',
+      flatten:
+        'Aplanar al exportar: el texto escrito queda en la página y los campos dejan de poder editarse',
+      hint: 'Lo que escribas se guarda en el archivo nuevo; el original no cambia. Los campos admiten letras de Europa occidental. Si dos archivos tienen un campo con el mismo nombre, el segundo se renombra para que no compartan valor.',
     },
     bookmarks: {
       legend: 'Marcadores',
