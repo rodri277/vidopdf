@@ -11,6 +11,8 @@ import {
   clearSelection,
   cropPages,
   fromOutlines,
+  placeOverlay,
+  removeOverlay,
   createSession,
   deletePages,
   duplicatePages,
@@ -44,6 +46,7 @@ import type {
   ImagePageOptions,
   Margins,
   MetadataSettings,
+  Overlay,
   OutlineEntry,
   PageGroup,
   PageRef,
@@ -177,6 +180,9 @@ export interface SessionState {
   ) => void;
   /** Starts a hand-made tree from the bookmarks of the loaded files. */
   importBookmarks: () => Promise<void>;
+  /** Puts a signature picture on a page, or moves or resizes one that is there (dragging is one undo step). */
+  placeSignature: (pageId: string, overlay: Overlay) => void;
+  removeSignature: (pageId: string, overlayId: string) => void;
   /** Crops the selected pages (as the reader sees them); no margins removes the crop. */
   cropSelected: (margins: Margins | undefined) => void;
   addAsset: (file: File) => Promise<AssetInfo | AssetProblem>;
@@ -527,6 +533,17 @@ export function createSessionStore(deps: SessionDeps) {
         const nodes = change(current.nodes);
         const mergeKey = field === undefined ? undefined : `bookmarks:${field}`;
         run(setFields('bookmarks', { bookmarks: { mode: 'custom', nodes } }, mergeKey));
+      },
+
+      placeSignature(pageId, overlay) {
+        const ws = workspace();
+        const page = ws.pages.find((candidate) => candidate.id === pageId);
+        if (page?.kind !== 'original') return;
+        run(placeOverlay(ws, pageId, overlay, `signature:${overlay.id}`));
+      },
+
+      removeSignature(pageId, overlayId) {
+        run(removeOverlay(workspace(), pageId, overlayId));
       },
 
       async importBookmarks() {

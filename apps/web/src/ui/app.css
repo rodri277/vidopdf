@@ -1169,3 +1169,97 @@ kbd {
   grid-column: 1 / -1;
   gap: var(--space-1);
 }
+
+/* Signature dialog */
+.sign-dialog {
+  width: min(1000px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(94vh, 960px);
+  overflow: auto;
+}
+
+.sign-layout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: var(--space-6);
+  margin-block: var(--space-4);
+}
+
+.sign-controls,
+.sign-stage {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.sign-frame {
+  position: relative;
+  justify-self: center;
+  max-width: 100%;
+  touch-action: none;
+}
+
+.sign-canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 58vh;
+  background: #fff;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.5);
+}
+
+.sign-item {
+  position: absolute;
+  padding: 0;
+  border: 1px dashed var(--accent);
+  background: transparent;
+  cursor: grab;
+}
+
+.sign-item img {
+  display: block;
+  width: 100%;
+}
+
+.sign-item:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.signature-pad {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.ink-swatch {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+
+.typed-preview {
+  min-height: 56px;
+  margin: 0;
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  background: #fff;
+  font-size: 32px;
+  font-style: italic;
+}
+
+@media (max-width: 800px) {
+  .sign-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.page-badge-left {
+  right: auto;
+  left: 8px;
+}

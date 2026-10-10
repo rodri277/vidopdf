@@ -89,7 +89,14 @@ export * from './security';
 export * from './bookmarks';
 export * from './document';
 export * from './pages';
-export type { FormMode, FormValue, FormValues } from './forms';
+export type {
+  FormFieldInfo,
+  FormFieldKind,
+  FormInfo,
+  FormMode,
+  FormValue,
+  FormValues,
+} from './forms';
 export {
   cropPages,
   placeOverlay,

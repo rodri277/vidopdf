@@ -64,12 +64,19 @@ describe('known limits of merging with copyPages', () => {
     expect(await readWith(out, (doc) => doc.getOutline())).toBeNull();
   });
 
-  it('LOSES the form definition: widgets stay visible but are no longer fillable fields', async () => {
-    const source = fixture('form-1p.pdf');
-    expect(await catalogKeys(source)).toContain('/AcroForm');
+  it('KEEPS the form: the fields are rebuilt from the widgets that were copied (ADR 006)', async () => {
+    expect(await catalogKeys(fixture('form-1p.pdf'))).toContain('/AcroForm');
     const out = await merged('form-1p.pdf', 1);
-    expect(await catalogKeys(out)).not.toContain('/AcroForm');
-    expect(await readWith(out, (doc) => doc.getFieldObjects())).toBeNull();
+    expect(await catalogKeys(out)).toContain('/AcroForm');
+    // pdf.js reports an object for a file with a form and null for one without.
+    expect(await readWith(out, (doc) => doc.getFieldObjects())).not.toBeNull();
+    const form = (await PDFDocument.load(out, { updateMetadata: false })).getForm();
+    expect(
+      form
+        .getFields()
+        .map((field) => field.getName())
+        .sort(),
+    ).toEqual(['accept', 'full_name']);
     const annotations = await annotationsOf(out);
     expect(annotations.map((a) => a.subtype)).toEqual(['Widget', 'Widget']);
   });
