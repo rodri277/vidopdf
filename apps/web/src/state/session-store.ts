@@ -11,6 +11,8 @@ import {
   clearSelection,
   cropPages,
   fromOutlines,
+  shownImageSize,
+  SIZE_PROBE_BYTES,
   isRestricted,
   placeOverlay,
   removeOverlay,
@@ -37,6 +39,7 @@ import {
   hasMetadata,
 } from '@vidopdf/core';
 import type {
+  ImageSize,
   BookmarkMode,
   BookmarkNode,
   Command,
@@ -154,6 +157,8 @@ export interface PasswordRequest {
 export interface PendingImage {
   readonly id: string;
   readonly file: File;
+  /** Pixels as the picture is seen, read from its header; unknown when the header is unusual. */
+  readonly size?: ImageSize;
 }
 
 export type ImageScope = 'all' | 'selection';
@@ -473,8 +478,13 @@ export function createSessionStore(deps: SessionDeps) {
       const kind = classifyFile(head, file.name, file.type);
       if (kind.kind === 'pdf') askOrAdopt(file, await loadPdf(file));
       else if (kind.kind === 'image') {
+        const probe = new Uint8Array(await file.slice(0, SIZE_PROBE_BYTES).arrayBuffer());
+        const size = shownImageSize(probe);
         set((state) => ({
-          pendingImages: [...state.pendingImages, { id: deps.newId(), file }],
+          pendingImages: [
+            ...state.pendingImages,
+            { id: deps.newId(), file, ...(size === undefined ? {} : { size }) },
+          ],
         }));
       } else adopt({ id: deps.newId(), name: file.name, kind: kind.reason });
     }

@@ -1272,3 +1272,19 @@ kbd {
   right: auto;
   left: 8px;
 }
+
+.import-summary-title {
+  margin: 0 0 var(--space-2);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.import-summary {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-4);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}

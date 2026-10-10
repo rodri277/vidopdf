@@ -58,6 +58,66 @@ test('"Fit the image" makes the page the size of the picture plus its margins', 
   expect(mediaBox(await exportPdf(page))).toEqual({ width: 300, height: 225 }); // 400 x 300 px at 96 dpi
 });
 
+test('a page of the size typed is made, however big the picture is', async ({ page }) => {
+  await drop(page, pictureFile('huge.png', 'png', 3000, 2000));
+  const dialog = dialogOf(page);
+  await dialog.getByRole('radio', { name: 'Tamaño propio' }).check();
+  await expect(dialog.getByRole('radio', { name: 'Vertical' })).toHaveCount(0); // the size is used as typed
+  await dialog.getByLabel('Ancho').fill('100');
+  await dialog.getByLabel('Alto').fill('150,5'); // a comma works as the decimal point
+  await dialog.getByRole('radio', { name: 'Sin márgenes' }).check();
+  await expect(dialog).toContainText(
+    'huge.png: 3000 × 2000 px, en una página de 100 × 150.5 mm, 762 ppp',
+  );
+  await dialog.getByRole('button', { name: 'Añadir las páginas' }).click();
+  await expect(pageCards(page)).toHaveCount(1);
+  const box = mediaBox(await exportPdf(page));
+  expect(box.width).toBeCloseTo(283.46, 1);
+  expect(box.height).toBeCloseTo(426.62, 1); // 150.5 mm
+});
+
+test('changing the unit keeps the size of the page, and a bad size is explained and blocks adding', async ({
+  page,
+}) => {
+  await drop(page, pictureFile('a.png', 'png'));
+  const dialog = dialogOf(page);
+  await dialog.getByRole('radio', { name: 'Tamaño propio' }).check();
+  await expect(dialog.getByLabel('Ancho')).toHaveValue('210'); // A4 as the starting point
+  await dialog.getByLabel('Unidad').selectOption('in');
+  await expect(dialog.getByLabel('Ancho')).toHaveValue('8.27'); // 210 mm
+  await dialog.getByLabel('Ancho').fill('300'); // 300 in is more than a PDF can hold
+  await expect(dialog.getByRole('alert')).toContainText('como mucho');
+  await expect(dialog.getByRole('button', { name: 'Añadir las páginas' })).toBeDisabled();
+  await dialog.getByLabel('Ancho').fill('0,1');
+  await expect(dialog.getByRole('alert')).toContainText('al menos');
+  await dialog.getByLabel('Ancho').fill('abc');
+  await expect(dialog.getByRole('alert')).toContainText('mayores que cero');
+  await dialog.getByLabel('Ancho').fill('6');
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Añadir las páginas' })).toBeEnabled();
+});
+
+test('before adding, each picture shows its page and the resolution it will have', async ({
+  page,
+}) => {
+  await drop(
+    page,
+    pictureFile('small.png', 'png', 400, 300),
+    pictureFile('big.png', 'png', 3000, 2000),
+  );
+  const dialog = dialogOf(page);
+  await dialog.getByRole('radio', { name: 'A4' }).check();
+  await dialog.getByRole('radio', { name: 'Sin márgenes' }).check();
+  await expect(dialog).toContainText(
+    'small.png: 400 × 300 px, en una página de 297 × 210 mm, 36 ppp',
+  );
+  await expect(dialog).toContainText('resolución baja');
+  await expect(dialog).toContainText(
+    'big.png: 3000 × 2000 px, en una página de 297 × 210 mm, 257 ppp',
+  );
+  await expect(dialog.getByRole('img')).toHaveAccessibleName('Así quedará «small.png»');
+});
+
 test('a phone photo is turned upright using its EXIF orientation', async ({ page }) => {
   // Stored 400 x 200 (wide) but recorded as "rotate 90 degrees": it is really a tall photo.
   await drop(page, pictureFile('phone.jpg', 'jpeg', 400, 200, 6));
