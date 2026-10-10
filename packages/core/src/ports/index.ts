@@ -2,6 +2,7 @@ import type { PdfError } from '../errors';
 import type { Result } from '../result';
 import type { CompressionReport } from '../compression/report';
 import type { Decorations } from '../export/decorations';
+import type { FormInfo } from '../forms';
 import type { ImageExportOptions } from '../images/export';
 import type { ImagePageOptions } from '../images/layout';
 import type { ExportPage, Rotation } from '../workspace/page-ref';
@@ -85,6 +86,8 @@ export interface PdfWriter {
   inspect(bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>>;
   /** A one-page PDF holding a JPEG or PNG, laid out as the options say and turned upright by its EXIF data. */
   fromImage(bytes: Uint8Array, options: ImagePageOptions): Promise<Result<Uint8Array, PdfError>>;
+  /** The fields of the form of a file, to offer a way to fill them. */
+  readForm(bytes: Uint8Array): Promise<Result<FormInfo, PdfError>>;
   assemble(
     sources: ReadonlyMap<string, Uint8Array>,
     pages: readonly ExportPage[],
