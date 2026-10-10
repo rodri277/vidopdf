@@ -9,7 +9,12 @@ import { readPages } from './testing/pdf-text';
 import { renderPage } from './testing/render';
 import { createCanvas } from '@napi-rs/canvas';
 
-const fit: ImagePageOptions = { paper: 'fit', orientation: 'auto', margin: 'none' };
+const fit: ImagePageOptions = {
+  ...defaultImagePageOptions,
+  paper: 'fit',
+  orientation: 'auto',
+  margin: 'none',
+};
 
 async function pdfOf(bytes: Uint8Array, options: ImagePageOptions = defaultImagePageOptions) {
   const result = await imageToPdf(bytes, options);
@@ -82,6 +87,7 @@ describe('imageToPdf', () => {
 
   it('lays a picture out on A4 within the margins, centred', async () => {
     const pdf = await pdfOf(quadrantImage(400, 300, 'png'), {
+      ...defaultImagePageOptions,
       paper: 'a4',
       orientation: 'auto',
       margin: 'large',
@@ -99,6 +105,27 @@ describe('imageToPdf', () => {
     expect(near(at(100, 150), COLORS.red)).toBe(true); // just inside the picture, top left
     expect(near(at(740, 150), COLORS.green)).toBe(true); // top right
     expect(near(at(100, 520), COLORS.blue)).toBe(true); // bottom left
+  });
+
+  it('makes a page of the size the user typed, with the picture filling it', async () => {
+    const options: ImagePageOptions = {
+      ...defaultImagePageOptions,
+      paper: 'custom',
+      custom: { width: 283.46, height: 425.2 }, // 100 x 150 mm
+      margin: 'none',
+    };
+    // Even a huge picture gives a page of that size, not one as big as the picture.
+    const pdf = await pdfOf(quadrantImage(3000, 4500, 'png'), options);
+    qpdfCheck(pdf);
+    const [page] = await readPages(pdf);
+    expect([page?.width, page?.height]).toEqual([283.46, 425.2]);
+    const raster = await renderPage(pdf, 1, { scale: 1 });
+    const at = (x: number, y: number) => {
+      const offset = (y * raster.width + x) * 4;
+      return [raster.data[offset] ?? 0, raster.data[offset + 1] ?? 0, raster.data[offset + 2] ?? 0];
+    };
+    expect(near(at(20, 20), COLORS.red)).toBe(true);
+    expect(near(at(raster.width - 20, raster.height - 20), COLORS.yellow)).toBe(true);
   });
 
   it('keeps transparency of a PNG', async () => {
