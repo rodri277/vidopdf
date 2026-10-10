@@ -31,6 +31,7 @@ export const es = {
     label: 'Páginas del documento',
     blank: 'página en blanco',
     page: 'Página {{n}}',
+    cropped: 'recortada',
     pageOf: 'Página {{n}} de {{total}}, {{name}}',
     selected: 'seleccionada',
   },
@@ -66,6 +67,7 @@ export const es = {
     duplicate: 'Duplicar',
     delete: 'Eliminar',
     insertBlank: 'Insertar página en blanco',
+    crop: 'Recortar',
     extract: 'Extraer a un PDF',
     splitHere: 'Dividir aquí',
     none: 'Sin selección',
@@ -343,6 +345,21 @@ export const es = {
       subject: 'Asunto',
       keywords: 'Palabras clave',
       keywordsHint: 'Separadas por comas.',
+    },
+  },
+  crop: {
+    title: 'Recortar {{count}} páginas',
+    warning:
+      'Recortar oculta lo que queda fuera, pero no lo borra: sigue dentro del archivo. Si hay algo que no deba verse, no basta con recortarlo.',
+    applies: 'El recorte se aplica a las {{count}} páginas seleccionadas, con los mismos márgenes.',
+    detect: 'Detectar márgenes',
+    remove: 'Quitar recorte',
+    close: 'Cerrar',
+    sides: {
+      top: 'Arriba (%)',
+      right: 'Derecha (%)',
+      bottom: 'Abajo (%)',
+      left: 'Izquierda (%)',
     },
   },
   crash: {

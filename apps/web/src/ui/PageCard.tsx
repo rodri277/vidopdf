@@ -21,6 +21,8 @@ export interface PageCardProps {
   selected: boolean;
   active: boolean;
   dragging: boolean;
+  /** The page has a crop: shown with a mark and said to screen readers. */
+  cropped: boolean;
   onSelect: (id: string, event: MouseEvent) => void;
   onOpen: (id: string) => void;
 }
@@ -89,6 +91,7 @@ export const PageCard = memo(function PageCard(props: PageCardProps) {
     selected,
     active,
     dragging,
+    cropped,
     onSelect,
     onOpen,
   } = props;
@@ -107,7 +110,7 @@ export const PageCard = memo(function PageCard(props: PageCardProps) {
       aria-selected={selected}
       aria-posinset={index + 1}
       aria-setsize={total}
-      aria-label={t('grid.pageOf', { n: index + 1, total, name })}
+      aria-label={`${t('grid.pageOf', { n: index + 1, total, name })}${cropped ? `, ${t('grid.cropped')}` : ''}`}
       className="page-card"
       data-selected={selected}
       data-active={active}
@@ -137,6 +140,11 @@ export const PageCard = memo(function PageCard(props: PageCardProps) {
         />
       </div>
       <span className="page-number mono">{index + 1}</span>
+      {cropped && (
+        <span className="page-badge" aria-hidden="true">
+          ✂
+        </span>
+      )}
     </div>
   );
 });

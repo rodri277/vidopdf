@@ -35,6 +35,7 @@ export const en: Widen<typeof es> = {
     label: 'Document pages',
     blank: 'blank page',
     page: 'Page {{n}}',
+    cropped: 'cropped',
     pageOf: 'Page {{n}} of {{total}}, {{name}}',
     selected: 'selected',
   },
@@ -70,6 +71,7 @@ export const en: Widen<typeof es> = {
     duplicate: 'Duplicate',
     delete: 'Delete',
     insertBlank: 'Insert blank page',
+    crop: 'Crop',
     extract: 'Extract to a PDF',
     splitHere: 'Split here',
     none: 'Nothing selected',
@@ -344,6 +346,21 @@ export const en: Widen<typeof es> = {
       subject: 'Subject',
       keywords: 'Keywords',
       keywordsHint: 'Separated by commas.',
+    },
+  },
+  crop: {
+    title: 'Crop {{count}} pages',
+    warning:
+      'Cropping hides what falls outside, but does not delete it: it stays inside the file. If something must not be seen, cropping is not enough.',
+    applies: 'The crop applies to the {{count}} selected pages, with the same margins.',
+    detect: 'Detect margins',
+    remove: 'Remove crop',
+    close: 'Close',
+    sides: {
+      top: 'Top (%)',
+      right: 'Right (%)',
+      bottom: 'Bottom (%)',
+      left: 'Left (%)',
     },
   },
   crash: {

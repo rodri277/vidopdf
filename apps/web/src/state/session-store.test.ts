@@ -764,3 +764,31 @@ describe('stamps, metadata and pictures', () => {
     expect(ctx.exportWorker.registerAsset).not.toHaveBeenCalled();
   });
 });
+
+describe('cropping the selected pages', () => {
+  it('crops only the selected original pages, as one step while an edge is dragged, and undoes it', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().insertBlankAfterSelection();
+    ctx.store.getState().selectEverything();
+    for (const top of [0.05, 0.1, 0.15]) {
+      ctx.store.getState().cropSelected({ top, right: 0, bottom: 0, left: 0 });
+    }
+    const edits = ws(ctx).edits;
+    expect(Object.keys(edits)).toHaveLength(3); // the blank page is left out
+    expect(Object.values(edits).every((e) => e.crop?.top === 0.15)).toBe(true);
+    ctx.store.getState().undo();
+    expect(ws(ctx).edits).toEqual({});
+    ctx.store.getState().redo();
+    ctx.store.getState().cropSelected(undefined);
+    expect(ws(ctx).edits).toEqual({});
+  });
+
+  it('does nothing without a selection', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().clearSelected();
+    ctx.store.getState().cropSelected({ top: 0.1, right: 0, bottom: 0, left: 0 });
+    expect(ws(ctx).edits).toEqual({});
+  });
+});

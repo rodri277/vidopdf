@@ -47,6 +47,10 @@ interface UiState {
   /** The dialog for what is stamped and written into the output. */
   documentOpen: boolean;
   documentTab: DocumentTab;
+  /** The dialog that crops the selected pages. */
+  cropOpen: boolean;
+  openCrop: () => void;
+  closeCrop: () => void;
   openDocument: (tab?: DocumentTab) => void;
   closeDocument: () => void;
   setDocumentTab: (tab: DocumentTab) => void;
@@ -68,6 +72,13 @@ export const useUi = create<UiState>((set) => ({
   exportMode: 'pdf',
   splitDraft: defaultSplitDraft,
   imageDraft: { format: 'png', dpi: DEFAULT_DPI, quality: DEFAULT_QUALITY, scope: 'all' },
+  cropOpen: false,
+  openCrop: () => {
+    set({ cropOpen: true });
+  },
+  closeCrop: () => {
+    set({ cropOpen: false });
+  },
   documentOpen: false,
   documentTab: 'numbering',
   openDocument: (tab) => {

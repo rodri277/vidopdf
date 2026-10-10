@@ -9,6 +9,7 @@ import {
   decorationsForMeasuring,
   outputCompression,
   clearSelection,
+  cropPages,
   createSession,
   deletePages,
   duplicatePages,
@@ -37,6 +38,7 @@ import type {
   ImageExportOptions,
   ImageFormat,
   ImagePageOptions,
+  Margins,
   MetadataSettings,
   OutlineEntry,
   PageGroup,
@@ -162,6 +164,8 @@ export interface SessionState {
   /** Sets or removes (null) the stamp of a slot; consecutive changes of one `field` are one undo step. */
   setStamp: (slot: StampSlot, stamp: Stamp | null, field?: string) => void;
   setMetadata: (metadata: MetadataSettings) => void;
+  /** Crops the selected pages (as the reader sees them); no margins removes the crop. */
+  cropSelected: (margins: Margins | undefined) => void;
   addAsset: (file: File) => Promise<AssetInfo | AssetProblem>;
   removeAsset: (id: string) => void;
   addFiles: (files: readonly File[]) => Promise<void>;
@@ -450,6 +454,16 @@ export function createSessionStore(deps: SessionDeps) {
             field === undefined ? undefined : `stamp:${slot}:${field}`,
           ),
         );
+      },
+
+      cropSelected(margins) {
+        const ws = workspace();
+        const originals = new Set(
+          ws.pages.filter((page) => page.kind === 'original').map((page) => page.id),
+        );
+        const ids = ws.selection.filter((id) => originals.has(id));
+        // Dragging an edge is one undo step; a different set of pages is a new one.
+        if (ids.length > 0) run(cropPages(ws, ids, margins, `crop:${ids.join(',')}`));
       },
 
       setMetadata(metadata) {
