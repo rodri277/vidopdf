@@ -53,10 +53,14 @@ function produced(changes: Partial<ProducedFile> = {}): ProducedFile {
   };
 }
 
+/** Names starting with "secret" need the password "open-sesame". */
+const PASSWORD = 'open-sesame';
+
 /** Pages per file name: "three.pdf" has 3 pages, "bad.pdf" is refused as damaged, "locked.pdf" as encrypted. */
 const pageCountOf = (name: string): number | PdfErrorKind => {
   if (name.startsWith('bad')) return 'corrupt';
   if (name.startsWith('locked')) return 'encrypted';
+  if (name.startsWith('secret')) return 'passwordRequired';
   return name.startsWith('five') ? 5 : name.startsWith('three') ? 3 : 1;
 };
 
@@ -68,8 +72,16 @@ function setup(
 ) {
   let counter = 0;
   const exportWorker: ExportWorkerApi = {
-    register: vi.fn((_id: string, bytes: Uint8Array) => {
-      const result = pageCountOf(new TextDecoder().decode(bytes).slice(PDF_HEAD.length));
+    register: vi.fn((_id: string, bytes: Uint8Array, password?: string) => {
+      const name = new TextDecoder().decode(bytes).slice(PDF_HEAD.length);
+      const result = pageCountOf(name);
+      if (result === 'passwordRequired' && password !== undefined) {
+        return Promise.resolve(
+          password === PASSWORD
+            ? ok({ pageCount: 2, restrictions: -3904 })
+            : err(pdfError('wrongPassword')),
+        );
+      }
       return Promise.resolve(
         typeof result === 'number' ? ok({ pageCount: result }) : err(pdfError(result)),
       );
@@ -78,6 +90,7 @@ function setup(
       Promise.resolve(ok({ info: { pageCount: 1 }, pdf: new Uint8Array([9]) })),
     ),
     release: vi.fn(),
+    readForm: vi.fn(() => Promise.resolve(ok({ fields: [], hasXfa: false, skipped: 0 }))),
     registerAsset: vi.fn(),
     releaseAsset: vi.fn(),
     runPlan: vi.fn(() => Promise.resolve(ok(produced()))),
@@ -934,5 +947,108 @@ describe('signatures', () => {
     const pages = vi.mocked(ctx.exportWorker.runPlan).mock.calls.at(-1)?.[1][0]?.pages;
     expect(pages?.[0]).toMatchObject({ overlays: [{ assetId: 'sig', x: 0.5 }] });
     expect(pages?.[1]).not.toHaveProperty('overlays');
+  });
+});
+
+describe('forms', () => {
+  const info = {
+    fields: [
+      {
+        name: 'full_name',
+        kind: 'text' as const,
+        value: 'Ada',
+        options: [],
+        readOnly: false,
+        multiline: false,
+      },
+    ],
+    hasXfa: false,
+    skipped: 0,
+  };
+
+  it('reads the fields of each loaded file once, and goes on when one cannot be read', async () => {
+    let calls = 0;
+    const ctx = setup({
+      exportWorker: {
+        readForm: vi.fn(() => {
+          calls++;
+          return calls === 1 ? Promise.reject(new Error('gone')) : Promise.resolve(ok(info));
+        }),
+      },
+    });
+    await load(ctx, pdf('three.pdf'), pdf('one.pdf'));
+    await ctx.store.getState().loadForms();
+    expect(Object.keys(ctx.store.getState().forms)).toHaveLength(1);
+    await ctx.store.getState().loadForms(); // the one that failed is tried again, the other is not
+    expect(ctx.exportWorker.readForm).toHaveBeenCalledTimes(3);
+  });
+
+  it('keeps what is typed per file and field, one undo step per field, and sends it with the export', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    const source = ws(ctx).sources[0]?.id ?? '';
+    for (const value of ['A', 'Ad', 'Ada'])
+      ctx.store.getState().setFormValue(source, 'full_name', value);
+    ctx.store.getState().setFormValue(source, 'accept', true);
+    expect(ws(ctx).forms[source]).toEqual({ full_name: 'Ada', accept: true });
+    ctx.store.getState().setFormMode('flatten');
+    await ctx.store.getState().startExport();
+    await vi.waitFor(() => {
+      expect(ctx.exportWorker.runPlan).toHaveBeenCalled();
+    });
+    const deco = vi.mocked(ctx.exportWorker.runPlan).mock.calls.at(-1)?.[1][0]?.decorations;
+    expect(deco).toMatchObject({
+      formMode: 'flatten',
+      forms: { [source]: { full_name: 'Ada', accept: true } },
+    });
+    ctx.store.getState().undo(); // the mode
+    ctx.store.getState().undo(); // the checkbox
+    expect(ws(ctx).forms[source]).toEqual({ full_name: 'Ada' });
+    ctx.store.getState().undo(); // the three keystrokes together
+    expect(ws(ctx).forms).toEqual({});
+  });
+});
+
+describe('protected files', () => {
+  it('asks for the password instead of turning the file down, and the others still load', async () => {
+    const ctx = setup();
+    await ctx.store.getState().addFiles([pdf('secret.pdf'), pdf('three.pdf')]);
+    expect(ws(ctx).pages).toHaveLength(3);
+    expect(ctx.store.getState().rejections).toEqual([]);
+    expect(ctx.store.getState().passwordRequests).toMatchObject([{ wrong: false }]);
+    expect(ctx.store.getState().loading).toBe(0);
+  });
+
+  it('opens it with the right password, keeps what its owner restricted, and never keeps the password', async () => {
+    const ctx = setup();
+    await ctx.store.getState().addFiles([pdf('secret.pdf')]);
+    const [request] = ctx.store.getState().passwordRequests;
+    await ctx.store.getState().submitPassword(request?.id ?? '', PASSWORD);
+    expect(ctx.store.getState().passwordRequests).toEqual([]);
+    expect(ws(ctx).pages).toHaveLength(2);
+    expect(ws(ctx).sources[0]).toMatchObject({ encrypted: true, restrictions: -3904 });
+    expect(JSON.stringify(ctx.store.getState().session)).not.toContain(PASSWORD);
+    expect(vi.mocked(ctx.renderWorker.open).mock.calls.at(-1)?.[2]).toBe(PASSWORD);
+  });
+
+  it('a wrong password asks again, marking it, until the right one comes or the user gives up', async () => {
+    const ctx = setup();
+    await ctx.store.getState().addFiles([pdf('secret.pdf')]);
+    const [request] = ctx.store.getState().passwordRequests;
+    await ctx.store.getState().submitPassword(request?.id ?? '', 'nope');
+    expect(ctx.store.getState().passwordRequests).toMatchObject([{ id: request?.id, wrong: true }]);
+    expect(ws(ctx).pages).toHaveLength(0);
+    ctx.store.getState().skipPassword(request?.id ?? '');
+    expect(ctx.store.getState().passwordRequests).toEqual([]);
+    expect(ctx.store.getState().rejections).toMatchObject([
+      { name: 'secret.pdf', kind: 'encrypted' },
+    ]);
+  });
+
+  it('does nothing for a request that is not there', async () => {
+    const ctx = setup();
+    await ctx.store.getState().submitPassword('ghost', 'x');
+    ctx.store.getState().skipPassword('ghost');
+    expect(ctx.store.getState().rejections).toEqual([]);
   });
 });

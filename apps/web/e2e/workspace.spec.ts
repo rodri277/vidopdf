@@ -38,7 +38,6 @@ test.describe('hostile input', () => {
     ['zero-bytes.pdf', /vacío/],
     ['not-a-pdf.pdf', /dañado o no es un PDF/],
     ['truncated.pdf', /dañado o no es un PDF/],
-    ['encrypted-owner-restricted.pdf', /protegido/],
     ['encrypted-user-password.pdf', /protegido/],
   ] as const;
 
@@ -52,6 +51,14 @@ test.describe('hostile input', () => {
       await expectThumbnail(page, 0);
     });
   }
+
+  test('a file that only restricts what readers may do opens like in any viewer', async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByTestId('file-input').setInputFiles([fixture('encrypted-owner-restricted.pdf')]);
+    await expectThumbnail(page, 0);
+  });
 
   test('a bad file does not stop the good ones loaded with it', async ({ page }) => {
     await openApp(page);

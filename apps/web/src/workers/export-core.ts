@@ -1,6 +1,16 @@
-import { err, ok, pdfError, splitBySize, toExportPage } from '@vidopdf/core';
+import {
+  ALL_ALLOWED,
+  decodePermissions,
+  err,
+  ok,
+  pdfError,
+  protectionFor,
+  splitBySize,
+  toExportPage,
+} from '@vidopdf/core';
 import type {
   CompressionOptions,
+  FormInfo,
   Compressor,
   ImagePageOptions,
   PageRef,
@@ -14,6 +24,7 @@ import type {
 import type {
   CompressionSummary,
   PlannedOutput,
+  ProtectionSummary,
   ProducedFile,
   SizeSpan,
   SplitFinishing,
@@ -21,6 +32,8 @@ import type {
 
 export interface ExportCoreDeps {
   readonly writer: PdfWriter;
+  /** A password nobody keeps (for the owner of a protected result). */
+  readonly randomPassword: () => string;
   readonly compressor: Compressor;
   readonly createZip: () => ZipBuilder;
 }
@@ -35,6 +48,10 @@ const ZIP = 'application/zip';
 export function createExportCore(deps: ExportCoreDeps) {
   const sources = new Map<string, Uint8Array>();
   const assets = new Map<string, Uint8Array>();
+  /** Typed by the user for protected files; in memory only, gone when the file is released. */
+  const passwords = new Map<string, string>();
+  /** The `/P` value of files whose owner restricted something (ADR 006). */
+  const restrictions = new Map<string, number>();
   const running = new Map<number, AbortController>();
 
   const track = (jobId: number): AbortController => {
@@ -43,9 +60,16 @@ export function createExportCore(deps: ExportCoreDeps) {
     return controller;
   };
 
-  async function register(sourceId: string, bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>> {
-    const info = await deps.writer.inspect(bytes);
-    if (info.ok) sources.set(sourceId, bytes);
+  async function register(
+    sourceId: string,
+    bytes: Uint8Array,
+    password?: string,
+  ): Promise<Result<PdfInfo, PdfError>> {
+    const info = await deps.writer.inspect(bytes, password);
+    if (!info.ok) return info;
+    sources.set(sourceId, bytes);
+    if (password !== undefined) passwords.set(sourceId, password);
+    if (info.value.restrictions !== undefined) restrictions.set(sourceId, info.value.restrictions);
     return info;
   }
 
@@ -63,6 +87,15 @@ export function createExportCore(deps: ExportCoreDeps) {
 
   function release(sourceId: string): void {
     sources.delete(sourceId);
+    passwords.delete(sourceId);
+    restrictions.delete(sourceId);
+  }
+
+  async function readForm(sourceId: string): Promise<Result<FormInfo, PdfError>> {
+    const bytes = sources.get(sourceId);
+    return bytes === undefined
+      ? err(pdfError('internal', `unknown source ${sourceId}`))
+      : deps.writer.readForm(bytes);
   }
 
   function registerAsset(assetId: string, bytes: Uint8Array): void {
@@ -97,6 +130,34 @@ export function createExportCore(deps: ExportCoreDeps) {
     return result.error.kind === 'cancelled' ? result : ok(asBuilt);
   }
 
+  /**
+   * Protects an output as the user chose, plus whatever its sources restricted: those restrictions
+   * are never lifted, and the owner password for them is one nobody keeps (ADR 006).
+   */
+  async function protectOutput(
+    output: PlannedOutput,
+    bytes: Uint8Array,
+  ): Promise<Result<{ bytes: Uint8Array; summary?: ProtectionSummary }, PdfError>> {
+    const used = new Set(
+      output.pages.flatMap((page) => (page.kind === 'original' ? [page.sourceId] : [])),
+    );
+    const inherited = [...used].flatMap((id) => {
+      const p = restrictions.get(id);
+      return p === undefined ? [] : [decodePermissions(p)];
+    });
+    const protection = protectionFor(output.protect, inherited, deps.randomPassword);
+    if (protection === undefined) return ok({ bytes });
+    const result = await deps.writer.protect(bytes, protection.options);
+    if (!result.ok) return result;
+    return ok({
+      bytes: result.value,
+      summary: {
+        needsPassword: protection.options.userPassword !== '',
+        inheritedRestrictions: protection.inherited,
+      },
+    });
+  }
+
   /** Gathers built PDFs: handed back as they are when there is one, packed in a ZIP when there are several. */
   function collector(outputs: readonly PlannedOutput[], archiveName: string) {
     const zip = outputs.length > 1 ? deps.createZip() : undefined;
@@ -106,8 +167,19 @@ export function createExportCore(deps: ExportCoreDeps) {
     const wanted = outputs.some((output) => output.compression !== undefined);
     const compression = (): { compression?: CompressionSummary } =>
       wanted ? { compression: { ...summary } } : {};
+    let protection: ProtectionSummary | undefined;
+    const withProtection = (): { protection?: ProtectionSummary } =>
+      protection === undefined ? {} : { protection };
     return {
       total,
+      noteProtection(next: ProtectionSummary | undefined): void {
+        if (next === undefined) return;
+        protection = {
+          needsPassword: (protection?.needsPassword ?? false) || next.needsPassword,
+          inheritedRestrictions:
+            (protection?.inheritedRestrictions ?? false) || next.inheritedRestrictions,
+        };
+      },
       count(before: number, after: number, found: number, recompressed: number): void {
         summary.bytesBefore += before;
         summary.bytesAfter += after;
@@ -125,6 +197,7 @@ export function createExportCore(deps: ExportCoreDeps) {
             pageCount: output.pages.length,
             cappedPages: 0,
             ...compression(),
+            ...withProtection(),
           };
           return ok(undefined);
         }
@@ -145,6 +218,7 @@ export function createExportCore(deps: ExportCoreDeps) {
           pageCount: total,
           cappedPages: 0,
           ...compression(),
+          ...withProtection(),
         });
       },
     };
@@ -169,6 +243,7 @@ export function createExportCore(deps: ExportCoreDeps) {
         const built = await deps.writer.assemble(sources, output.pages, {
           signal: controller.signal,
           assets,
+          passwords,
           ...(output.decorations === undefined ? {} : { decorations: output.decorations }),
           onProgress: (done) => {
             onProgress(before + done, total);
@@ -195,7 +270,10 @@ export function createExportCore(deps: ExportCoreDeps) {
             packed.value.recompressed,
           );
         }
-        const added = files.add(output, packed.value.bytes);
+        const secured = await protectOutput(output, packed.value.bytes);
+        if (!secured.ok) return secured;
+        files.noteProtection(secured.value.summary);
+        const added = files.add(output, secured.value.bytes);
         if (!added.ok) return added;
       }
       return files.finish();
@@ -223,11 +301,20 @@ export function createExportCore(deps: ExportCoreDeps) {
             {
               signal: controller.signal,
               assets,
+              passwords,
               ...(finishing === undefined ? {} : { decorations: finishing.decorations }),
             },
           );
           if (!built.ok) throw new Error(built.error.kind);
-          return built.value.byteLength;
+          if (finishing?.protect !== true) return built.value.byteLength;
+          // Encrypting adds a little to every file: measure it with the protection on.
+          const secured = await deps.writer.protect(built.value, {
+            userPassword: 'x',
+            ownerPassword: deps.randomPassword(),
+            permissions: ALL_ALLOWED,
+          });
+          if (!secured.ok) throw new Error(secured.error.kind);
+          return secured.value.byteLength;
         },
         { signal: controller.signal, onProgress },
       );
@@ -252,6 +339,7 @@ export function createExportCore(deps: ExportCoreDeps) {
     register,
     registerImage,
     release,
+    readForm,
     registerAsset,
     releaseAsset,
     runPlan,

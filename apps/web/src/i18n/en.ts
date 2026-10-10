@@ -109,6 +109,8 @@ export const en: Widen<typeof es> = {
     readyHint: 'Check the size and save the file whenever you like.',
     failed: 'It could not be finished. None of your files changed.',
     failedUnsupported: 'This browser cannot create that image format. Try PNG or JPEG.',
+    failedContent:
+      'Some text or a picture you added could not be written into the PDF. See the technical detail to know which.',
     failedDetail: 'Technical detail: {{detail}}',
     save: 'Save',
     back: 'Back',
@@ -249,7 +251,9 @@ export const en: Widen<typeof es> = {
   errors: {
     empty: '{{name}}: the file is empty or has no pages.',
     corrupt: "{{name}}: couldn't be read; it is damaged or not a PDF.",
-    encrypted: '{{name}}: is protected by a password or restrictions, which is not supported yet.',
+    encrypted: '{{name}}: it was not opened because it is protected with a password.',
+    passwordRequired: '{{name}}: it needs a password to be opened.',
+    wrongPassword: '{{name}}: that password is not the right one.',
     unsupported: "{{name}}: this kind of PDF isn't supported.",
     cancelled: 'Operation cancelled.',
     internal: '{{name}}: unexpected error. Try another file.',
@@ -272,6 +276,7 @@ export const en: Widen<typeof es> = {
     tabs: {
       numbering: 'Numbering and text',
       watermark: 'Watermark',
+      forms: 'Forms',
       bookmarks: 'Bookmarks',
       metadata: 'Information',
     },
@@ -326,6 +331,16 @@ export const en: Widen<typeof es> = {
         ROMAN: 'I, II, III',
         custom: 'Custom',
       },
+    },
+    forms: {
+      title: 'Forms',
+      none: 'None of the loaded files has a form.',
+      xfa: '{{names}}: it also carries an XFA form, which is not supported. The normal fields are kept and the XFA is dropped.',
+      skipped_one: 'One field (a button or a digital signature) cannot be filled here.',
+      skipped_other: '{{count}} fields (buttons or digital signatures) cannot be filled here.',
+      flatten:
+        'Flatten when exporting: the typed text stays on the page and the fields can no longer be edited',
+      hint: 'What you type is saved in the new file; the original does not change. Fields take Western European letters. If two files have a field with the same name, the second is renamed so they do not share a value.',
     },
     bookmarks: {
       legend: 'Bookmarks',
@@ -438,6 +453,36 @@ export const en: Widen<typeof es> = {
         unreadable: 'That picture could not be read.',
       },
     },
+  },
+  protect: {
+    legend: 'Protect with a password',
+    enable: 'Put a password on the file',
+    inherited:
+      'Some of the loaded files have restrictions set by their author (for example, no printing or no copying). They are kept in the new file and cannot be changed from here.',
+    password: 'Password to open it',
+    confirm: 'Repeat the password',
+    mismatch: 'The two passwords do not match.',
+    allow: 'What whoever opens it may do',
+    permissions: {
+      print: 'Print',
+      copy: 'Copy the content',
+      modify: 'Modify the document',
+      annotate: 'Add comments',
+    },
+    owner: 'Permissions password (optional)',
+    ownerHint:
+      'It lets the permissions above be changed later. If you leave it empty, nobody will be able to change them.',
+    lost: 'If you forget the password there is no way to recover it: Vidopdf does not keep it anywhere.',
+    readyPassword: 'The file will ask for the password to open.',
+    readyInherited: 'The restrictions the original files had were kept.',
+  },
+  password: {
+    title: 'This file is protected with a password',
+    hint: 'Type the password to open it. It is only used for this, it is not stored and it does not leave your device.',
+    label: 'Password',
+    wrong: 'That password is not the right one. Try again.',
+    skip: 'Do not open it',
+    open: 'Open',
   },
   crash: {
     title: 'Something went wrong',

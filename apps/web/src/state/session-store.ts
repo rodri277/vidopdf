@@ -11,6 +11,7 @@ import {
   clearSelection,
   cropPages,
   fromOutlines,
+  isRestricted,
   placeOverlay,
   removeOverlay,
   createSession,
@@ -39,6 +40,9 @@ import type {
   BookmarkNode,
   Command,
   ExportOptions,
+  FormInfo,
+  FormMode,
+  FormValue,
   CompressionPreset,
   ExportPlan,
   ImageExportOptions,
@@ -46,6 +50,8 @@ import type {
   ImagePageOptions,
   Margins,
   MetadataSettings,
+  Permissions,
+  ProtectChoice,
   Overlay,
   OutlineEntry,
   PageGroup,
@@ -109,6 +115,41 @@ export type SplitPreview =
     }
   | { readonly phase: 'failed'; readonly error: SplitError };
 
+/** What the user is typing to protect the next export. Kept in memory only, never in the history. */
+export interface ProtectDraft {
+  readonly userPassword: string;
+  readonly confirm: string;
+  readonly ownerPassword: string;
+  readonly permissions: Permissions;
+}
+
+/** The choice to hand to the export, or undefined while the draft is not complete. */
+export function protectChoiceOf(draft: ProtectDraft | undefined): ProtectChoice | undefined {
+  if (draft === undefined) return undefined;
+  const opens = draft.userPassword !== '' && draft.userPassword === draft.confirm;
+  const restricts = isRestricted(draft.permissions);
+  if (!opens && !restricts) return undefined;
+  if (draft.userPassword !== '' && !opens) return undefined;
+  return {
+    userPassword: draft.userPassword,
+    ownerPassword: draft.ownerPassword,
+    permissions: draft.permissions,
+  };
+}
+
+/** Protection was asked for but is not complete (passwords that do not match): do not export yet. */
+export function protectIncomplete(draft: ProtectDraft | undefined): boolean {
+  return draft !== undefined && protectChoiceOf(draft) === undefined;
+}
+
+/** A protected file waiting for its password. The password itself is never kept in the state. */
+export interface PasswordRequest {
+  readonly id: string;
+  readonly file: File;
+  /** The last password tried was not the right one. */
+  readonly wrong: boolean;
+}
+
 export interface PendingImage {
   readonly id: string;
   readonly file: File;
@@ -156,6 +197,8 @@ export interface SessionState {
   rejections: readonly Rejection[];
   /** Files being read right now (shown as progress). */
   loading: number;
+  /** Protected files waiting for their password, asked one at a time. */
+  passwordRequests: readonly PasswordRequest[];
   /** Pictures waiting for the user to choose how they become pages. */
   pendingImages: readonly PendingImage[];
   /** Bookmarks of each source, loaded on demand. */
@@ -165,6 +208,11 @@ export interface SessionState {
   job: JobState;
   split: SplitPreview;
   assets: Readonly<Record<string, AssetInfo>>;
+  /** The fields of each loaded file's form, read on demand. */
+  forms: Readonly<Record<string, FormInfo>>;
+  /** How the next export is protected, while the user is setting it. */
+  protect: ProtectDraft | undefined;
+  setProtect: (draft: ProtectDraft | undefined) => void;
   /** Applies to every PDF the app builds: the whole file, an extract and the parts of a split. */
   compression: CompressionChoice;
   setCompression: (choice: CompressionChoice) => void;
@@ -180,6 +228,11 @@ export interface SessionState {
   ) => void;
   /** Starts a hand-made tree from the bookmarks of the loaded files. */
   importBookmarks: () => Promise<void>;
+  /** Reads the form fields of the loaded files that have not been read yet. */
+  loadForms: () => Promise<void>;
+  /** Sets what is typed in one field of one file; typing in one field is one undo step. */
+  setFormValue: (sourceId: string, name: string, value: FormValue) => void;
+  setFormMode: (mode: FormMode) => void;
   /** Puts a signature picture on a page, or moves or resizes one that is there (dragging is one undo step). */
   placeSignature: (pageId: string, overlay: Overlay) => void;
   removeSignature: (pageId: string, overlayId: string) => void;
@@ -190,6 +243,10 @@ export interface SessionState {
   addFiles: (files: readonly File[]) => Promise<void>;
   addImages: (options: ImagePageOptions) => Promise<void>;
   discardImages: () => void;
+  /** Opens a protected file with the password the user typed; a wrong one asks again. */
+  submitPassword: (requestId: string, password: string) => Promise<void>;
+  /** Gives up on a protected file: it is not opened and the user is told so. */
+  skipPassword: (requestId: string) => void;
   select: (id: string, mode: 'only' | 'toggle' | 'range') => void;
   selectIds: (ids: readonly string[], additive: boolean) => void;
   selectEverything: () => void;
@@ -239,11 +296,23 @@ function toPlanned(plan: ExportPlan): PlannedOutput[] {
   return plan.outputs.map((output) => {
     const compression = outputCompression(output);
     const assemble = output.steps.find((step) => step.kind === 'assemble');
+    const protect = output.steps.find((step) => step.kind === 'protect');
     return {
       name: output.name,
       pages: assemble?.kind === 'assemble' ? assemble.pages : [],
       ...(assemble?.kind === 'assemble' ? { decorations: assemble.decorations } : {}),
       ...(compression === undefined ? {} : { compression }),
+      ...(protect?.kind === 'protect'
+        ? {
+            protect: {
+              ...(protect.userPassword === undefined ? {} : { userPassword: protect.userPassword }),
+              ...(protect.ownerPassword === undefined
+                ? {}
+                : { ownerPassword: protect.ownerPassword }),
+              permissions: protect.permissions,
+            },
+          }
+        : {}),
     };
   });
 }
@@ -308,11 +377,14 @@ export function createSessionStore(deps: SessionDeps) {
       send: (
         id: string,
         bytes: Uint8Array<ArrayBuffer>,
-      ) => Promise<{ pageCount: number; forRender?: Uint8Array } | PdfErrorKind>,
+      ) => Promise<
+        { pageCount: number; restrictions?: number; forRender?: Uint8Array } | PdfErrorKind
+      >,
+      password?: string,
     ): Promise<Loaded | Rejection> {
       const id = deps.newId();
       try {
-        return await registerAs(id, file, send);
+        return await registerAs(id, file, send, password);
       } catch {
         // Whatever half-finished state a worker kept for this file is no use to anyone now.
         deps.exportWorker().release(id);
@@ -330,14 +402,19 @@ export function createSessionStore(deps: SessionDeps) {
       send: (
         id: string,
         bytes: Uint8Array<ArrayBuffer>,
-      ) => Promise<{ pageCount: number; forRender?: Uint8Array } | PdfErrorKind>,
+      ) => Promise<
+        { pageCount: number; restrictions?: number; forRender?: Uint8Array } | PdfErrorKind
+      >,
+      password?: string,
     ): Promise<Loaded | Rejection> {
       const bytes = await readFresh(file);
       const fingerprint = await fingerprintOf(bytes, file);
       const sent = await send(id, bytes);
       if (typeof sent === 'string') return { id, name: file.name, kind: sent };
       const forRender = sent.forRender ?? (await readFresh(file));
-      const opened = await deps.renderWorker().open(id, transfer(forRender, [forRender.buffer]));
+      const opened = await deps
+        .renderWorker()
+        .open(id, transfer(forRender, [forRender.buffer]), password);
       if (!opened.ok) {
         deps.exportWorker().release(id);
         return { id, name: file.name, kind: opened.error.kind };
@@ -348,16 +425,30 @@ export function createSessionStore(deps: SessionDeps) {
         pageCount: sent.pageCount,
         size: file.size,
         fingerprint,
-        encrypted: false,
+        encrypted: password !== undefined,
+        ...(sent.restrictions === undefined ? {} : { restrictions: sent.restrictions }),
       };
       return { source };
     }
 
-    function loadPdf(file: File): Promise<Loaded | Rejection> {
-      return register(file, async (id, bytes) => {
-        const info = await deps.exportWorker().register(id, transfer(bytes, [bytes.buffer]));
-        return info.ok ? { pageCount: info.value.pageCount } : info.error.kind;
-      });
+    function loadPdf(file: File, password?: string): Promise<Loaded | Rejection> {
+      return register(
+        file,
+        async (id, bytes) => {
+          const info = await deps
+            .exportWorker()
+            .register(id, transfer(bytes, [bytes.buffer]), password);
+          return info.ok
+            ? {
+                pageCount: info.value.pageCount,
+                ...(info.value.restrictions === undefined
+                  ? {}
+                  : { restrictions: info.value.restrictions }),
+              }
+            : info.error.kind;
+        },
+        password,
+      );
     }
 
     function loadImage(file: File, options: ImagePageOptions): Promise<Loaded | Rejection> {
@@ -374,12 +465,23 @@ export function createSessionStore(deps: SessionDeps) {
     async function addOne(file: File): Promise<void> {
       const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
       const kind = classifyFile(head, file.name, file.type);
-      if (kind.kind === 'pdf') adopt(await loadPdf(file));
+      if (kind.kind === 'pdf') askOrAdopt(file, await loadPdf(file));
       else if (kind.kind === 'image') {
         set((state) => ({
           pendingImages: [...state.pendingImages, { id: deps.newId(), file }],
         }));
       } else adopt({ id: deps.newId(), name: file.name, kind: kind.reason });
+    }
+
+    /** A file that needs a password waits for it; anything else is taken in or turned down. */
+    function askOrAdopt(file: File, entry: Loaded | Rejection): void {
+      if (!isLoaded(entry) && entry.kind === 'passwordRequired') {
+        set((state) => ({
+          passwordRequests: [...state.passwordRequests, { id: deps.newId(), file, wrong: false }],
+        }));
+        return;
+      }
+      adopt(entry);
     }
 
     function adopt(entry: Loaded | Rejection): void {
@@ -480,7 +582,13 @@ export function createSessionStore(deps: SessionDeps) {
       // The day of export, in the user's own calendar, for {date} in a stamp.
       const date = new Date().toLocaleDateString('sv-SE');
       const bookmarks = await bookmarkNodes(workspace().bookmarks.mode);
-      return { date, bookmarks, ...(preset === undefined ? {} : { compression: preset }) };
+      const choice = protectChoiceOf(get().protect);
+      return {
+        date,
+        bookmarks,
+        ...(preset === undefined ? {} : { compression: preset }),
+        ...(choice === undefined ? {} : { protect: choice }),
+      };
     };
 
     return {
@@ -488,12 +596,19 @@ export function createSessionStore(deps: SessionDeps) {
       rejections: [],
       loading: 0,
       pendingImages: [],
+      passwordRequests: [],
       outlines: {},
       encodable: undefined,
       job: { phase: 'idle' },
       split: { phase: 'idle' },
       compression: 'off',
       assets: {},
+      forms: {},
+      protect: undefined,
+
+      setProtect(protect) {
+        set({ protect });
+      },
 
       setCompression(compression) {
         set({ compression });
@@ -533,6 +648,31 @@ export function createSessionStore(deps: SessionDeps) {
         const nodes = change(current.nodes);
         const mergeKey = field === undefined ? undefined : `bookmarks:${field}`;
         run(setFields('bookmarks', { bookmarks: { mode: 'custom', nodes } }, mergeKey));
+      },
+
+      async loadForms() {
+        const missing = workspace().sources.filter(
+          (source) => get().forms[source.id] === undefined,
+        );
+        const read = await Promise.all(
+          missing.map(async (source) => {
+            const info = await deps.exportWorker().readForm(source.id).catch(failedOutright);
+            return info.ok ? ([source.id, info.value] as const) : undefined;
+          }),
+        );
+        const found: Record<string, FormInfo> = {};
+        for (const entry of read) if (entry !== undefined) found[entry[0]] = entry[1];
+        set((state) => ({ forms: { ...state.forms, ...found } }));
+      },
+
+      setFormValue(sourceId, name, value) {
+        const current = workspace().forms;
+        const forms = { ...current, [sourceId]: { ...current[sourceId], [name]: value } };
+        run(setFields('forms', { forms }, `form:${sourceId}:${name}`));
+      },
+
+      setFormMode(formMode) {
+        run(setFields('forms', { formMode }));
       },
 
       placeSignature(pageId, overlay) {
@@ -609,6 +749,40 @@ export function createSessionStore(deps: SessionDeps) {
           adopt(await loadImage(file, options));
           set((state) => ({ loading: state.loading - 1 }));
         }
+      },
+
+      async submitPassword(requestId, password) {
+        const request = get().passwordRequests.find((candidate) => candidate.id === requestId);
+        if (request === undefined) return;
+        const entry = await loadPdf(request.file, password);
+        if (
+          !isLoaded(entry) &&
+          (entry.kind === 'wrongPassword' || entry.kind === 'passwordRequired')
+        ) {
+          set((state) => ({
+            passwordRequests: state.passwordRequests.map((candidate) =>
+              candidate.id === requestId ? { ...candidate, wrong: true } : candidate,
+            ),
+          }));
+          return;
+        }
+        set((state) => ({
+          passwordRequests: state.passwordRequests.filter(
+            (candidate) => candidate.id !== requestId,
+          ),
+        }));
+        adopt(entry);
+      },
+
+      skipPassword(requestId) {
+        const request = get().passwordRequests.find((candidate) => candidate.id === requestId);
+        if (request === undefined) return;
+        set((state) => ({
+          passwordRequests: state.passwordRequests.filter(
+            (candidate) => candidate.id !== requestId,
+          ),
+        }));
+        adopt({ id: deps.newId(), name: request.file.name, kind: 'encrypted' });
       },
 
       discardImages() {
@@ -732,7 +906,11 @@ export function createSessionStore(deps: SessionDeps) {
                 set({ split: { phase: 'measuring', done, total } });
               }
             }),
-            { decorations: decorationsForMeasuring(workspace()), edits: workspace().edits },
+            {
+              decorations: decorationsForMeasuring(workspace()),
+              edits: workspace().edits,
+              ...(protectChoiceOf(get().protect) === undefined ? {} : { protect: true }),
+            },
           )
           .catch((error: unknown) =>
             err({ kind: 'measureFailed' as const, detail: describeFailure(error) }),
@@ -824,7 +1002,8 @@ export function createSessionStore(deps: SessionDeps) {
           // The file stays ready, so pressing Save again is all it takes.
           return;
         }
-        set({ job: { phase: 'idle' } });
+        // Passwords are not kept once the file is saved.
+        set({ job: { phase: 'idle' }, protect: undefined });
       },
 
       dismissJob() {

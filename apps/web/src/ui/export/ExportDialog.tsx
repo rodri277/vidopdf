@@ -117,6 +117,18 @@ function Compressed({ result }: { result: ProducedFile }) {
   );
 }
 
+function Protection({ result }: { result: ProducedFile }) {
+  const { t } = useTranslation();
+  const summary = result.protection;
+  if (summary === undefined) return null;
+  return (
+    <>
+      {summary.needsPassword && <p>{t('protect.readyPassword')}</p>}
+      {summary.inheritedRestrictions && <p className="muted">{t('protect.readyInherited')}</p>}
+    </>
+  );
+}
+
 function Ready({ job }: { job: Extract<JobState, { phase: 'ready' }> }) {
   const { t } = useTranslation();
   const { dismissJob, saveResult } = useSession.getState();
@@ -124,6 +136,7 @@ function Ready({ job }: { job: Extract<JobState, { phase: 'ready' }> }) {
     <>
       <p role="status">{summaryOf(job, t)}</p>
       <Compressed result={job.result} />
+      <Protection result={job.result} />
       <p className="mono result-name">{job.result.name}</p>
       {job.result.cappedPages > 0 && (
         <p className="muted">{t('export.capped', { count: job.result.cappedPages })}</p>
@@ -150,7 +163,7 @@ function Ready({ job }: { job: Extract<JobState, { phase: 'ready' }> }) {
 function Failed({ job }: { job: Extract<JobState, { phase: 'failed' }> }) {
   const { t } = useTranslation();
   const { dismissJob } = useSession.getState();
-  const { text, detail } = failureMessage(t, job.failure);
+  const { text, detail } = failureMessage(t, job.failure, job.job);
   return (
     <>
       <p role="alert">{text}</p>

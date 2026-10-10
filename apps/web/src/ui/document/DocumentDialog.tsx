@@ -5,12 +5,13 @@ import { useUi } from '../../state/ui-store';
 import type { DocumentTab } from '../../state/ui-store';
 import { Modal } from '../Modal';
 import { BookmarksPanel } from './BookmarksPanel';
+import { FormsPanel } from './FormsPanel';
 import { MetadataPanel } from './MetadataPanel';
 import { NumberingPanel } from './NumberingPanel';
 import { StampPreview } from './StampPreview';
 import { WatermarkPanel } from './WatermarkPanel';
 
-const TABS: readonly DocumentTab[] = ['numbering', 'watermark', 'bookmarks', 'metadata'];
+const TABS: readonly DocumentTab[] = ['numbering', 'watermark', 'forms', 'bookmarks', 'metadata'];
 
 /**
  * What is stamped on the pages and written into the output file, with a live preview. Everything
@@ -55,6 +56,7 @@ export function DocumentDialog() {
           <div className="document-panel">
             {tab === 'numbering' && <NumberingPanel />}
             {tab === 'watermark' && <WatermarkPanel />}
+            {tab === 'forms' && <FormsPanel />}
             {tab === 'bookmarks' && <BookmarksPanel />}
             {tab === 'metadata' && <MetadataPanel />}
           </div>

@@ -1,8 +1,17 @@
-import { PDFDocument, degrees } from '@cantoo/pdf-lib';
+import { PDFDict, PDFDocument, PDFName, PDFNumber, degrees } from '@cantoo/pdf-lib';
 import type { PDFPage } from '@cantoo/pdf-lib';
 import { err, ok, pdfError } from '@vidopdf/core';
-import type { ExportPage, PdfError, PdfInfo, PdfWriter, Result, WriteOptions } from '@vidopdf/core';
-import { cropBox } from '@vidopdf/core';
+import { cropBox, decodePermissions, isRestricted } from '@vidopdf/core';
+import type {
+  ExportPage,
+  Permissions,
+  PdfError,
+  PdfInfo,
+  PdfWriter,
+  ProtectOptions,
+  Result,
+  WriteOptions,
+} from '@vidopdf/core';
 import { decorate, ImageCache } from './decorate';
 import { readFormInfo } from './decorate/form-info';
 import { applyForms, rebuildForms } from './decorate/forms';
@@ -18,25 +27,104 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** Loads without decrypting: encrypted input is detected and rejected, never opened (SPEC §7). */
-async function load(bytes: Uint8Array): Promise<Result<PDFDocument, PdfError>> {
+/** What the library says when a file needs a password and when the one given is not it. */
+const PASSWORD_INCORRECT = /needs password|password incorrect/i;
+
+/** The `/P` value of an encrypted file, read without opening it. */
+function permissionsOf(doc: PDFDocument): number | undefined {
+  const reference = doc.context.trailerInfo.Encrypt;
+  const dict = reference === undefined ? undefined : doc.context.lookupMaybe(reference, PDFDict);
+  const value = dict?.get(PDFName.of('P'));
+  return value instanceof PDFNumber ? value.asNumber() : undefined;
+}
+
+/** What is taken away from readers by the owner of a file, if anything. */
+function restrictionsOf(doc: PDFDocument): number | undefined {
+  const p = permissionsOf(doc);
+  return p !== undefined && isRestricted(decodePermissions(p)) ? p : undefined;
+}
+
+interface Loaded {
+  readonly doc: PDFDocument;
+  /** The `/P` value when the owner took something away. */
+  readonly restrictions: number | undefined;
+}
+
+/**
+ * Opens a file. A protected file is opened with the password the user typed, and only that: with
+ * none, the empty password is tried (files that only restrict what readers may do open that way,
+ * as in any viewer) and anything else is reported as needing a password.
+ */
+async function load(bytes: Uint8Array, password?: string): Promise<Result<Loaded, PdfError>> {
   if (bytes.byteLength === 0) return err(pdfError('empty'));
   try {
-    const doc = await PDFDocument.load(bytes, {
+    const probe = await PDFDocument.load(bytes, {
       ignoreEncryption: true,
       throwOnInvalidObject: true,
+      updateMetadata: false,
     });
-    if (doc.isEncrypted) return err(pdfError('encrypted'));
+    const restrictions = probe.isEncrypted ? restrictionsOf(probe) : undefined;
+    const doc = probe.isEncrypted
+      ? await PDFDocument.load(bytes, {
+          password: password ?? '',
+          throwOnInvalidObject: true,
+          updateMetadata: false,
+        })
+      : probe;
     if (doc.getPageCount() === 0) return err(pdfError('empty', 'no pages'));
-    return ok(doc);
+    return ok({ doc, restrictions });
   } catch (error) {
+    if (error instanceof Error && PASSWORD_INCORRECT.test(error.message)) {
+      return err(pdfError(password === undefined ? 'passwordRequired' : 'wrongPassword'));
+    }
     return err(pdfError('corrupt', describe(error)));
   }
 }
 
-async function inspect(bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>> {
-  const loaded = await load(bytes);
-  return loaded.ok ? ok({ pageCount: loaded.value.getPageCount() }) : loaded;
+async function inspect(bytes: Uint8Array, password?: string): Promise<Result<PdfInfo, PdfError>> {
+  const loaded = await load(bytes, password);
+  if (!loaded.ok) return loaded;
+  const { doc, restrictions } = loaded.value;
+  return ok({
+    pageCount: doc.getPageCount(),
+    ...(restrictions === undefined ? {} : { restrictions }),
+  });
+}
+
+/** Encrypts a finished PDF with AES-256 (ADR 006); nothing but the library's own cipher is used. */
+async function protect(
+  bytes: Uint8Array,
+  options: ProtectOptions,
+): Promise<Result<Uint8Array, PdfError>> {
+  try {
+    const doc = await PDFDocument.load(bytes, { updateMetadata: false });
+    doc.encrypt({
+      userPassword: options.userPassword,
+      ownerPassword: options.ownerPassword,
+      permissions: toLibraryPermissions(options.permissions),
+    });
+    return ok(await doc.save({ useObjectStreams: false }));
+  } catch (error) {
+    return err(pdfError('internal', describe(error)));
+  }
+}
+
+/** The names the library uses for the permissions of ISO 32000 table 22. */
+function toLibraryPermissions(permissions: Permissions) {
+  return {
+    printing:
+      permissions.print === 'none'
+        ? false
+        : permissions.print === 'high'
+          ? 'highResolution'
+          : 'lowResolution',
+    modifying: permissions.modify,
+    copying: permissions.copy,
+    annotating: permissions.annotate,
+    fillingForms: permissions.fillForms,
+    contentAccessibility: permissions.accessibility,
+    documentAssembly: permissions.assemble,
+  } as const;
 }
 
 /**
@@ -48,6 +136,7 @@ const parsed = new WeakMap<Uint8Array, PDFDocument>();
 async function loadSources(
   sources: ReadonlyMap<string, Uint8Array>,
   needed: ReadonlySet<string>,
+  passwords: ReadonlyMap<string, string>,
 ): Promise<Result<Map<string, PDFDocument>, PdfError>> {
   const docs = new Map<string, PDFDocument>();
   for (const sourceId of needed) {
@@ -58,10 +147,10 @@ async function loadSources(
       docs.set(sourceId, cached);
       continue;
     }
-    const loaded = await load(bytes);
+    const loaded = await load(bytes, passwords.get(sourceId));
     if (!loaded.ok) return loaded;
-    parsed.set(bytes, loaded.value);
-    docs.set(sourceId, loaded.value);
+    parsed.set(bytes, loaded.value.doc);
+    docs.set(sourceId, loaded.value.doc);
   }
   return ok(docs);
 }
@@ -166,7 +255,7 @@ async function assembleUnsafe(
 ): Promise<Result<Uint8Array, PdfError>> {
   if (pages.length === 0) return err(pdfError('empty', 'no pages selected'));
   const needed = new Set(pages.flatMap((p) => (p.kind === 'original' ? [p.sourceId] : [])));
-  const docs = await loadSources(sources, needed);
+  const docs = await loadSources(sources, needed, options.passwords ?? new Map());
   if (!docs.ok) return docs;
   const output = await PDFDocument.create({ updateMetadata: false });
   const assets = options.assets ?? new Map<string, Uint8Array>();
@@ -187,6 +276,7 @@ export function createPdfLibWriter(config: PdfLibWriterConfig = {}): PdfWriter {
   const fonts = config.fonts ?? [];
   return {
     inspect,
+    protect,
     readForm: readFormInfo,
     assemble: (sources, pages, options) => assemble(fonts, sources, pages, options),
     fromImage: imageToPdf,

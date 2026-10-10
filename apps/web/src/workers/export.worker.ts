@@ -1,4 +1,5 @@
 import { expose, transfer } from 'comlink';
+import { randomPassword } from '@vidopdf/core';
 import { createBrowserCompressor } from '@vidopdf/pdf-adapters/compress';
 import { createPdfLibWriter } from '@vidopdf/pdf-adapters/pdf-lib';
 import { createZipBuilder } from '@vidopdf/pdf-adapters/zip';
@@ -7,6 +8,7 @@ import { createExportCore } from './export-core';
 import { interFiles } from './fonts';
 
 const core = createExportCore({
+  randomPassword: () => randomPassword(crypto.getRandomValues(new Uint8Array(24))),
   writer: createPdfLibWriter({ fonts: interFiles }),
   compressor: createBrowserCompressor(),
   createZip: createZipBuilder,
@@ -15,6 +17,7 @@ const core = createExportCore({
 const api: ExportWorkerApi = {
   register: core.register,
   release: core.release,
+  readForm: core.readForm,
   releaseAsset: core.releaseAsset,
   registerAsset: core.registerAsset,
   cancelJob: core.cancelJob,

@@ -8,10 +8,12 @@ import {
   suggestedBaseName,
 } from '@vidopdf/core';
 import { useSession } from '../../state/session';
+import { protectIncomplete } from '../../state/session-store';
 import { sameSpec, specFromDraft, usableBookmarks } from '../../state/split';
 import type { SplitKind } from '../../state/split';
 import { useUi } from '../../state/ui-store';
 import { CompressionField } from './CompressionField';
+import { ProtectField } from './ProtectField';
 import { formatBytes } from '../format';
 import { describePages, splitErrorMessage } from './messages';
 
@@ -235,7 +237,8 @@ export function SplitPanel() {
   const { runSplit } = useSession.getState();
   const spec = useLivePreview(draft.kind);
   const stale = split.phase === 'ready' && !sameSpec(split.spec, spec);
-  const canRun = split.phase === 'ready' && !stale && !busy;
+  const incomplete = useSession((state) => protectIncomplete(state.protect));
+  const canRun = split.phase === 'ready' && !stale && !busy && !incomplete;
 
   return (
     <>
@@ -276,6 +279,7 @@ export function SplitPanel() {
 
       <Preview stale={stale} />
       <CompressionField />
+      <ProtectField />
       <div className="panel-actions">
         <button
           type="button"

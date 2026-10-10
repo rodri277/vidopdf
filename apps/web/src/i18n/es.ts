@@ -108,6 +108,8 @@ export const es = {
     failed: 'No se pudo terminar. Ninguno de tus archivos ha cambiado.',
     failedUnsupported:
       'Este navegador no puede crear ese formato de imagen. Prueba con PNG o JPEG.',
+    failedContent:
+      'Un texto o una imagen que has añadido no se pudo escribir en el PDF. Mira el detalle técnico para saber cuál.',
     failedDetail: 'Detalle técnico: {{detail}}',
     save: 'Guardar',
     back: 'Volver',
@@ -248,7 +250,9 @@ export const es = {
   errors: {
     empty: '{{name}}: el archivo está vacío o no tiene páginas.',
     corrupt: '{{name}}: no se pudo leer; está dañado o no es un PDF.',
-    encrypted: '{{name}}: está protegido con contraseña o restricciones y todavía no se admite.',
+    encrypted: '{{name}}: no se abrió porque está protegido con contraseña.',
+    passwordRequired: '{{name}}: necesita una contraseña para abrirse.',
+    wrongPassword: '{{name}}: esa contraseña no es la correcta.',
     unsupported: '{{name}}: este tipo de PDF no se admite.',
     cancelled: 'Operación cancelada.',
     internal: '{{name}}: error inesperado. Prueba con otro archivo.',
@@ -271,6 +275,7 @@ export const es = {
     tabs: {
       numbering: 'Numeración y textos',
       watermark: 'Marca de agua',
+      forms: 'Formularios',
       bookmarks: 'Marcadores',
       metadata: 'Información',
     },
@@ -325,6 +330,17 @@ export const es = {
         ROMAN: 'I, II, III',
         custom: 'Personalizado',
       },
+    },
+    forms: {
+      title: 'Formularios',
+      none: 'Ninguno de los archivos cargados tiene formulario.',
+      xfa: '{{names}}: además lleva un formulario XFA, que no se admite. Se conservan los campos normales y el XFA se descarta.',
+      skipped_one: 'Hay un campo (un botón o una firma digital) que no se puede rellenar aquí.',
+      skipped_other:
+        'Hay {{count}} campos (botones o firmas digitales) que no se pueden rellenar aquí.',
+      flatten:
+        'Aplanar al exportar: el texto escrito queda en la página y los campos dejan de poder editarse',
+      hint: 'Lo que escribas se guarda en el archivo nuevo; el original no cambia. Los campos admiten letras de Europa occidental. Si dos archivos tienen un campo con el mismo nombre, el segundo se renombra para que no compartan valor.',
     },
     bookmarks: {
       legend: 'Marcadores',
@@ -437,6 +453,36 @@ export const es = {
         unreadable: 'No se pudo leer esa imagen.',
       },
     },
+  },
+  protect: {
+    legend: 'Proteger con contraseña',
+    enable: 'Poner una contraseña al archivo',
+    inherited:
+      'Alguno de los archivos cargados tiene restricciones de su autor (por ejemplo, no imprimir o no copiar). Se conservan en el archivo nuevo y no se pueden cambiar desde aquí.',
+    password: 'Contraseña para abrirlo',
+    confirm: 'Repite la contraseña',
+    mismatch: 'Las dos contraseñas no coinciden.',
+    allow: 'Qué se permite hacer a quien lo abra',
+    permissions: {
+      print: 'Imprimir',
+      copy: 'Copiar el contenido',
+      modify: 'Modificar el documento',
+      annotate: 'Añadir comentarios',
+    },
+    owner: 'Contraseña de permisos (opcional)',
+    ownerHint:
+      'Con ella se pueden cambiar más adelante los permisos de arriba. Si la dejas vacía, nadie podrá cambiarlos.',
+    lost: 'Si olvidas la contraseña no hay forma de recuperarla: Vidopdf no la guarda en ningún sitio.',
+    readyPassword: 'El archivo pedirá la contraseña para abrirse.',
+    readyInherited: 'Se han conservado las restricciones que tenían los archivos originales.',
+  },
+  password: {
+    title: 'Este archivo está protegido con contraseña',
+    hint: 'Escribe la contraseña para abrirlo. Solo se usa para esto, no se guarda y no sale de tu dispositivo.',
+    label: 'Contraseña',
+    wrong: 'Esa contraseña no es la correcta. Prueba otra vez.',
+    skip: 'No abrirlo',
+    open: 'Abrir',
   },
   crash: {
     title: 'Algo ha fallado',

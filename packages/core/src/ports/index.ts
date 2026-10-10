@@ -5,10 +5,25 @@ import type { Decorations } from '../export/decorations';
 import type { FormInfo } from '../forms';
 import type { ImageExportOptions } from '../images/export';
 import type { ImagePageOptions } from '../images/layout';
+import type { Permissions } from '../security/permissions';
 import type { ExportPage, Rotation } from '../workspace/page-ref';
 
 export interface PdfInfo {
   readonly pageCount: number;
+  /**
+   * The `/P` permission value of a file whose owner took something away. Absent for files with
+   * nothing taken away. Such restrictions are kept on export and never lifted (ADR 006).
+   */
+  readonly restrictions?: number;
+}
+
+/** How a result is protected (passwords and what readers may do). */
+export interface ProtectOptions {
+  /** Needed to open the file; empty means anyone can open it, with the permissions below. */
+  readonly userPassword: string;
+  /** Lets whoever knows it change the permissions. */
+  readonly ownerPassword: string;
+  readonly permissions: Permissions;
 }
 
 export interface RenderedPage<Image> {
@@ -44,7 +59,7 @@ export interface PdfRenderer<Image> {
   /** With `takeOwnership` the caller gives the bytes away, which saves a copy of the whole file. */
   open(
     bytes: Uint8Array,
-    options?: { readonly takeOwnership?: boolean },
+    options?: { readonly takeOwnership?: boolean; readonly password?: string },
   ): Promise<Result<PdfInfo, PdfError>>;
   renderPage(
     pageIndex: number,
@@ -77,13 +92,18 @@ export interface WriteOptions {
   readonly decorations?: Decorations;
   /** Pictures that stamps and signatures use, by asset id. */
   readonly assets?: ReadonlyMap<string, Uint8Array>;
+  /** Passwords of the protected sources the user opened, by source id. */
+  readonly passwords?: ReadonlyMap<string, string>;
   /** Called after each page is added, with the number done so far and the total. */
   readonly onProgress?: (done: number, total: number) => void;
 }
 
 /** Builds the output PDF from page references. The source PDFs are never modified. */
 export interface PdfWriter {
-  inspect(bytes: Uint8Array): Promise<Result<PdfInfo, PdfError>>;
+  /** Checks a file; with `password` it is opened as a protected file is. */
+  inspect(bytes: Uint8Array, password?: string): Promise<Result<PdfInfo, PdfError>>;
+  /** Encrypts a PDF with AES-256 and the given permissions. */
+  protect(bytes: Uint8Array, options: ProtectOptions): Promise<Result<Uint8Array, PdfError>>;
   /** A one-page PDF holding a JPEG or PNG, laid out as the options say and turned upright by its EXIF data. */
   fromImage(bytes: Uint8Array, options: ImagePageOptions): Promise<Result<Uint8Array, PdfError>>;
   /** The fields of the form of a file, to offer a way to fill them. */

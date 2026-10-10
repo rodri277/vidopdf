@@ -2,7 +2,9 @@
 export type PdfErrorKind =
   | 'empty' // zero bytes or no pages
   | 'corrupt' // truncated, damaged xref or not a PDF
-  | 'encrypted' // v1 rejects every encrypted PDF, owner-restricted ones included
+  | 'encrypted' // protected, and the user chose not to give the password
+  | 'passwordRequired' // needs a password to be opened
+  | 'wrongPassword' // the password given does not open it
   | 'unsupported'
   | 'cancelled'
   | 'internal';

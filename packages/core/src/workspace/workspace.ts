@@ -15,7 +15,13 @@ export interface SourceFile {
   readonly size: number;
   /** SHA-256 of the content, hex. Lets the UI notice the same file being added twice. */
   readonly fingerprint: string;
+  /** Opened with a password the user typed. */
   readonly encrypted: boolean;
+  /**
+   * The `/P` value when the owner took something away (printing, copying...). Whatever is
+   * exported from this file keeps those restrictions; they are never lifted (ADR 006).
+   */
+  readonly restrictions?: number;
 }
 
 /**

@@ -92,3 +92,15 @@ describe('describePages', () => {
     expect(describePages([4])).toBe('4');
   });
 });
+
+describe('failureMessage for something that could not be written', () => {
+  it('blames the picture format only for pictures out, and the added content for a PDF', () => {
+    const failure = { kind: 'unsupported', detail: 'characters without a glyph: 你' } as const;
+    expect(failureMessage(spanish, failure, 'images').text).toContain('formato de imagen');
+    expect(failureMessage(spanish, failure, 'pdf').text).toContain(
+      'texto o una imagen que has añadido',
+    );
+    expect(failureMessage(english, failure, 'split').text).toContain('text or a picture you added');
+    expect(failureMessage(english, failure, 'pdf').detail).toBe('characters without a glyph: 你');
+  });
+});

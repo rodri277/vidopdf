@@ -59,7 +59,10 @@ const defaultCanvas = (width: number, height: number): RenderCanvas =>
 
 function kindOf(error: unknown): PdfErrorKind {
   const name = error instanceof Error ? error.name : '';
-  if (name === 'PasswordException') return 'encrypted';
+  // pdf.js codes: 1 needs a password, 2 the one given is wrong.
+  if (name === 'PasswordException') {
+    return (error as { code?: number }).code === 2 ? 'wrongPassword' : 'passwordRequired';
+  }
   if (name === 'AbortException' || name === 'RenderingCancelledException') return 'cancelled';
   return 'corrupt';
 }
@@ -161,7 +164,7 @@ export function createPdfjsRenderer(
 
   async function open(
     bytes: Uint8Array,
-    options: { readonly takeOwnership?: boolean } = {},
+    options: { readonly takeOwnership?: boolean; readonly password?: string } = {},
   ): Promise<Result<PdfInfo, PdfError>> {
     await close();
     try {
@@ -172,6 +175,7 @@ export function createPdfjsRenderer(
         // pdfjs-dist 6 has no eval path (the old `isEvalSupported` option is gone) and runs no
         // embedded JavaScript unless a viewer enables scripting, which we never do.
         maxImageSize: MAX_CANVAS_PIXELS,
+        ...(options.password === undefined ? {} : { password: options.password }),
         // We run inside a worker, where there is no `document`: pdf.js must not use FontFace, and
         // must fetch its data files itself (its other fetch paths read document.baseURI).
         useWorkerFetch: true,
