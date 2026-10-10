@@ -2,8 +2,8 @@ import { memo, useEffect, useRef } from 'react';
 import type { MouseEvent } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
-import { renderKey } from '@vidopdf/core';
-import type { PageRef } from '@vidopdf/core';
+import { normalizeCrop, renderKey } from '@vidopdf/core';
+import type { Margins, PageRef } from '@vidopdf/core';
 import { useThumbnail } from '../thumbnails/thumbnails';
 import type { Rect } from './grid-layout';
 
@@ -21,8 +21,8 @@ export interface PageCardProps {
   selected: boolean;
   active: boolean;
   dragging: boolean;
-  /** The page has a crop: shown with a mark and said to screen readers. */
-  cropped: boolean;
+  /** The crop of the page, as the reader sees it: shaded on the page, marked, and said to screen readers. */
+  crop: Margins | undefined;
   /** The page carries a signature. */
   signed: boolean;
   onSelect: (id: string, event: MouseEvent) => void;
@@ -39,10 +39,12 @@ export function PageFace({
   page,
   boxWidth,
   boxHeight,
+  crop,
 }: {
   page: PageRef;
   boxWidth: number;
   boxHeight: number;
+  crop?: Margins | undefined;
 }) {
   const thumbnail = useThumbnail(renderKey(page));
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -78,7 +80,21 @@ export function PageFace({
           aria-hidden="true"
         />
       )}
+      {crop !== undefined && <CropShade crop={crop} />}
     </div>
+  );
+}
+
+/** Dims what the crop leaves out. The page itself is not cut: the original stays whole. */
+function CropShade({ crop }: { crop: Margins }) {
+  const { top, right, bottom, left } = normalizeCrop(crop);
+  const percent = (fraction: number) => `${String(fraction * 100)}%`;
+  return (
+    <div
+      className="page-cut"
+      aria-hidden="true"
+      style={{ inset: `${percent(top)} ${percent(right)} ${percent(bottom)} ${percent(left)}` }}
+    />
   );
 }
 
@@ -93,7 +109,7 @@ export const PageCard = memo(function PageCard(props: PageCardProps) {
     selected,
     active,
     dragging,
-    cropped,
+    crop,
     signed,
     onSelect,
     onOpen,
@@ -101,6 +117,7 @@ export const PageCard = memo(function PageCard(props: PageCardProps) {
   const { t } = useTranslation();
   const { setNodeRef, listeners } = useDraggable({ id: page.id });
   const name = page.kind === 'blank' ? t('grid.blank') : sourceName;
+  const cropped = crop !== undefined;
 
   return (
     // Virtual focus: the listbox keeps the keyboard focus and points at the active option with
@@ -140,6 +157,7 @@ export const PageCard = memo(function PageCard(props: PageCardProps) {
           page={page}
           boxWidth={rect.width - 2 * CARD_PADDING}
           boxHeight={rect.height - LABEL - CARD_PADDING}
+          crop={crop}
         />
       </div>
       <span className="page-number mono">{index + 1}</span>

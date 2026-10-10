@@ -1146,6 +1146,15 @@ kbd {
   color: var(--text-muted);
 }
 
+.page-cut {
+  position: absolute;
+  pointer-events: none;
+  /* The frame clips this: what the crop removes is dimmed, what stays is untouched. */
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 45%);
+  outline: 1px dashed rgb(255 255 255 / 85%);
+  outline-offset: -1px;
+}
+
 .bookmark-list {
   display: grid;
   gap: var(--space-3);

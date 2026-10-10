@@ -52,6 +52,32 @@ test('a cropped page is marked in the grid for everyone, screen readers included
   await expect(page.getByRole('option', { name: /recortada/ })).toHaveCount(0);
 });
 
+test('the thumbnail shades what the crop leaves out, and the page itself stays whole', async ({
+  page,
+}) => {
+  await loadFive(page);
+  await clickCard(page, 0);
+  const dialog = await openCrop(page);
+  await dialog.getByLabel('Arriba (%)').fill('10');
+  await dialog.getByLabel('Izquierda (%)').fill('20');
+  await dialog.getByRole('button', { name: 'Cerrar' }).click();
+  const card = page.getByRole('option').first();
+  const shade = card.locator('.page-cut');
+  await expect(shade).toHaveCount(1);
+  const [frame, cut] = await Promise.all([
+    card.locator('.page-frame').boundingBox(),
+    shade.boundingBox(),
+  ]);
+  if (frame === null || cut === null) throw new Error('no boxes');
+  expect(cut.y - frame.y).toBeCloseTo(frame.height * 0.1, 0);
+  expect(cut.x - frame.x).toBeCloseTo(frame.width * 0.2, 0);
+  expect(cut.x + cut.width).toBeCloseTo(frame.x + frame.width, 0);
+  await expect(card.locator('.page-canvas')).toHaveCount(1);
+  await expect(page.getByRole('option').nth(1).locator('.page-cut')).toHaveCount(0);
+  await page.getByRole('button', { name: /^Deshacer/ }).click();
+  await expect(card.locator('.page-cut')).toHaveCount(0);
+});
+
 test('detects the margins of the content and can remove the crop; undo brings it back', async ({
   page,
 }) => {
