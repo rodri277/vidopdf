@@ -81,7 +81,7 @@ The method and every number are in [ADR 004](docs/adr/004-compression-strategy.m
 - **Cropping hides, it does not delete:** what falls outside the new page is still in the file. The dialog says so; do not use it to hide confidential information.
 - **Visual signature** is a picture on the page, not an electronic signature in the sense of eIDAS; it carries no certificate. The picture is never stored or sent.
 - **Forms:** fields survive merging and can be filled or flattened. XFA forms are not supported, and values typed into fields are limited to the characters of the PDF standard font encoding (WinAnsi).
-- **Metadata** is what you type; nothing is added silently. Importing it from the loaded files is not built yet.
+- **Metadata** is what you type; nothing is added silently. You can copy the details of a loaded file as a starting point.
 - **Merging uses pdf-lib's `copyPages`, which loses some structure** (pinned by `merge-limits.test.ts`):
   - bookmarks (the outline) are dropped by `copyPages` itself, so the writer rebuilds them from the files' own bookmarks;
   - form fields would stop being fillable (the widgets stay but the form definition is gone), so the writer rebuilds the form from the widgets that were copied;
@@ -91,7 +91,7 @@ The method and every number are in [ADR 004](docs/adr/004-compression-strategy.m
 - **Pictures in:** only JPEG and PNG (WebP and GIF are turned down). Mirrored EXIF orientations (2, 4, 5, 7) follow the standard table but were not checked against camera files.
 - **Pictures out:** WebP depends on the browser (Safari on macOS cannot write it, and the option is switched off with an explanation). Pages too large for the canvas budget are drawn at a lower resolution and you are told. A ZIP is built in memory.
 - **Memory:** about 6.5 MB of browser memory per MB of scanned PDF; the application warns at 150 MB loaded.
-- External links and the text layer survive. Pictures are copied byte for byte unless you ask for compression. Pictures over 40 megapixels are never recompressed, to keep the browser's memory safe.
+- External links and the text layer survive. Links that point to another page of the same file are dropped, because they could not go anywhere once pages are reordered or left out; what is left out of a result (a page, or a button of a form on another page) is not carried inside the file. Pictures are copied byte for byte unless you ask for compression. Pictures over 40 megapixels are never recompressed, to keep the browser's memory safe.
 - **Accessibility** is a target (WCAG 2.2 AA), checked with axe in every screen and by hand with the keyboard, but there has been no external audit, so this is not a claim of conformance.
 - **Legal texts** (privacy, legal notice, terms) were written by the developer with Claude Code, not by a lawyer. The project is run under the alias vidotho; see the legal notice in the app.
 

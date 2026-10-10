@@ -81,7 +81,7 @@ El método y todos los números están en el [ADR 004](docs/adr/004-compression-
 - **Recortar oculta, no borra:** lo que queda fuera de la página nueva sigue en el archivo. El diálogo lo dice; no lo uses para ocultar información confidencial.
 - **La firma visual** es una imagen sobre la página, no una firma electrónica en el sentido de eIDAS; no lleva certificado. La imagen nunca se guarda ni se envía.
 - **Formularios:** los campos sobreviven a unir y se pueden rellenar o aplanar. Los formularios XFA no se admiten, y los valores escritos en los campos se limitan a los caracteres de la codificación estándar de fuentes del PDF (WinAnsi).
-- **Metadatos:** son lo que escribes; no se añade nada en silencio. Importarlos de los archivos cargados aún no está hecho.
+- **Metadatos:** son lo que escribes; no se añade nada en silencio. Puedes copiar los datos de un archivo cargado como punto de partida.
 - **Unir usa `copyPages` de pdf-lib, que pierde parte de la estructura** (fijado por `merge-limits.test.ts`):
   - `copyPages` pierde los marcadores (el índice del documento), así que el escritor los reconstruye a partir de los de los propios archivos;
   - los campos de formulario dejarían de ser rellenables (los widgets se ven, pero la definición del formulario desaparece), así que el escritor reconstruye el formulario a partir de los widgets copiados;
@@ -91,7 +91,7 @@ El método y todos los números están en el [ADR 004](docs/adr/004-compression-
 - **Imágenes de entrada:** solo JPEG y PNG (WebP y GIF se rechazan). Las orientaciones EXIF con espejo (2, 4, 5, 7) siguen la tabla estándar pero no se han comprobado con archivos de cámara.
 - **Imágenes de salida:** WebP depende del navegador (Safari en macOS no puede escribirlo y la opción se apaga con una explicación). Las páginas demasiado grandes para el lienzo se dibujan con menos resolución y se avisa. El ZIP se construye en memoria.
 - **Memoria:** unos 6,5 MB de memoria del navegador por cada MB de PDF escaneado; la aplicación avisa a los 150 MB cargados.
-- Los enlaces externos y la capa de texto se conservan. Las imágenes se copian byte a byte salvo que pidas comprimir. Las de más de 40 megapíxeles nunca se recomprimen, para no agotar la memoria del navegador.
+- Los enlaces externos y la capa de texto se conservan. Los enlaces a otra página del mismo archivo se eliminan, porque dejarían de llevar a ningún sitio al reordenar o quitar páginas; lo que se deja fuera de un resultado (una página, o un botón de un formulario que está en otra página) no viaja dentro del archivo. Las imágenes se copian byte a byte salvo que pidas comprimir. Las de más de 40 megapíxeles nunca se recomprimen, para no agotar la memoria del navegador.
 - **Accesibilidad:** es un objetivo (WCAG 2.2 AA), comprobado con axe en cada pantalla y a mano con el teclado, pero no ha habido una auditoría externa, así que no se afirma conformidad.
 - **Los textos legales** (privacidad, aviso legal, términos) los ha escrito la persona desarrolladora con Claude Code, no un abogado. El proyecto funciona bajo el alias vidotho; consulta el aviso legal en la app.
 
