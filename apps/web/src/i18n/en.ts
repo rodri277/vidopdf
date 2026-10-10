@@ -246,8 +246,19 @@ export const en: Widen<typeof es> = {
     none: 'No PDFs loaded yet.',
   },
   empty: {
-    title: 'Drop your PDFs here',
-    hint: 'Merge, split, reorder and compress them without uploading them to any server.',
+    title: 'Drop your PDFs or images here',
+    hint: 'Edit PDFs, or make a new one from photos and screenshots (JPEG or PNG), without uploading anything to any server.',
+    featuresLabel: 'What you can do',
+    feature: {
+      merge: 'Merge and split',
+      arrange: 'Reorder, rotate and crop',
+      images: 'Images to PDF and PDF to images',
+      compress: 'Compress',
+      stamps: 'Page numbers and watermarks',
+      sign: 'Visual signature and forms',
+      metadata: 'Metadata and bookmarks',
+      protect: 'Password and permissions',
+    },
     choose: 'Choose files',
   },
   thumb: {

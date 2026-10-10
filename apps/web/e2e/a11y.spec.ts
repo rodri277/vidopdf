@@ -9,7 +9,7 @@ test('the empty state has no accessibility violations, in both languages', async
   expect((await new AxeBuilder({ page }).withTags(tags).analyze()).violations).toEqual([]);
 
   await page.getByRole('button', { name: 'English' }).click();
-  await expect(page.getByRole('heading', { name: 'Drop your PDFs here' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Drop your PDFs or images here' })).toBeVisible();
   expect((await new AxeBuilder({ page }).withTags(tags).analyze()).violations).toEqual([]);
 });
 
