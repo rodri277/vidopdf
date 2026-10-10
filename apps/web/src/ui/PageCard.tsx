@@ -3,9 +3,10 @@ import type { MouseEvent } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import { normalizeCrop, renderKey } from '@vidopdf/core';
-import type { Margins, PageRef } from '@vidopdf/core';
+import type { Margins, Overlay, PageRef } from '@vidopdf/core';
 import { useThumbnail } from '../thumbnails/thumbnails';
 import type { Rect } from './grid-layout';
+import { OverlayLayer } from './OverlayLayer';
 
 const CARD_PADDING = 8;
 /** Matches the page-number label under the frame in app.css. */
@@ -23,8 +24,8 @@ export interface PageCardProps {
   dragging: boolean;
   /** The crop of the page, as the reader sees it: shaded on the page, marked, and said to screen readers. */
   crop: Margins | undefined;
-  /** The page carries a signature. */
-  signed: boolean;
+  /** The signatures on the page: drawn over it, marked, and said to screen readers. */
+  overlays: readonly Overlay[] | undefined;
   onSelect: (id: string, event: MouseEvent) => void;
   onOpen: (id: string) => void;
 }
@@ -40,11 +41,13 @@ export function PageFace({
   boxWidth,
   boxHeight,
   crop,
+  overlays,
 }: {
   page: PageRef;
   boxWidth: number;
   boxHeight: number;
   crop?: Margins | undefined;
+  overlays?: readonly Overlay[] | undefined;
 }) {
   const thumbnail = useThumbnail(renderKey(page));
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -80,6 +83,7 @@ export function PageFace({
           aria-hidden="true"
         />
       )}
+      <OverlayLayer overlays={overlays} />
       {crop !== undefined && <CropShade crop={crop} />}
     </div>
   );
@@ -110,7 +114,7 @@ export const PageCard = memo(function PageCard(props: PageCardProps) {
     active,
     dragging,
     crop,
-    signed,
+    overlays,
     onSelect,
     onOpen,
   } = props;
@@ -118,6 +122,7 @@ export const PageCard = memo(function PageCard(props: PageCardProps) {
   const { setNodeRef, listeners } = useDraggable({ id: page.id });
   const name = page.kind === 'blank' ? t('grid.blank') : sourceName;
   const cropped = crop !== undefined;
+  const signed = (overlays?.length ?? 0) > 0;
 
   return (
     // Virtual focus: the listbox keeps the keyboard focus and points at the active option with
@@ -158,6 +163,7 @@ export const PageCard = memo(function PageCard(props: PageCardProps) {
           boxWidth={rect.width - 2 * CARD_PADDING}
           boxHeight={rect.height - LABEL - CARD_PADDING}
           crop={crop}
+          overlays={overlays}
         />
       </div>
       <span className="page-number mono">{index + 1}</span>

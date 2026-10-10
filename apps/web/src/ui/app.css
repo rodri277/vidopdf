@@ -518,35 +518,18 @@ kbd {
   background: var(--bg);
 }
 
-.preview-picture {
-  display: grid;
-  place-items: center;
+.preview-sheet {
+  position: relative;
   max-width: 100cqw;
   max-height: 100cqh;
 }
 
 .preview-canvas {
+  display: block;
   max-width: 100cqw;
   max-height: 100cqh;
   background: #fff;
   box-shadow: 0 8px 32px rgb(0 0 0 / 0.5);
-  transition: transform var(--motion);
-}
-
-.preview-canvas[data-rotation='90'] {
-  max-width: 100cqh;
-  max-height: 100cqw;
-  transform: rotate(90deg);
-}
-
-.preview-canvas[data-rotation='180'] {
-  transform: rotate(180deg);
-}
-
-.preview-canvas[data-rotation='270'] {
-  max-width: 100cqh;
-  max-height: 100cqw;
-  transform: rotate(270deg);
 }
 
 .preview-blank {
@@ -1167,6 +1150,12 @@ kbd {
   right: 8px;
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.overlay-picture {
+  position: absolute;
+  height: auto;
+  pointer-events: none;
 }
 
 .page-cut {

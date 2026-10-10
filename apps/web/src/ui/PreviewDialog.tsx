@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PageRef } from '@vidopdf/core';
+import type { Overlay, PageRef } from '@vidopdf/core';
 import { useSession } from '../state/session';
 import { useUi } from '../state/ui-store';
 import { GRID_ID } from './PageGrid';
 import { Modal } from './Modal';
+import { OverlayLayer } from './OverlayLayer';
+import { PageCanvas } from './PageCanvas';
 import { usePagePicture } from './usePagePicture';
 import type { Drawn } from './usePagePicture';
 
@@ -31,17 +33,18 @@ function useWalking(index: number, count: number, go: (to: number) => void) {
   );
 }
 
-function Picture({ page, drawn, label }: { page: PageRef; drawn: Drawn; label: string }) {
+function Picture({
+  page,
+  drawn,
+  label,
+  overlays,
+}: {
+  page: PageRef;
+  drawn: Drawn;
+  label: string;
+  overlays: readonly Overlay[] | undefined;
+}) {
   const { t } = useTranslation();
-  const canvas = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const element = canvas.current;
-    if (element === null || drawn.state !== 'ready') return;
-    element.width = drawn.image.width;
-    element.height = drawn.image.height;
-    element.getContext('2d')?.drawImage(drawn.image.image, 0, 0);
-  }, [drawn]);
 
   if (page.kind === 'blank') {
     const sideways = page.rotation === 90 || page.rotation === 270;
@@ -57,13 +60,9 @@ function Picture({ page, drawn, label }: { page: PageRef; drawn: Drawn; label: s
   }
   if (drawn.state === 'ready') {
     return (
-      <div role="img" aria-label={label} className="preview-picture">
-        <canvas
-          ref={canvas}
-          className="preview-canvas"
-          data-rotation={page.rotation}
-          aria-hidden="true"
-        />
+      <div role="img" aria-label={label} className="preview-sheet">
+        <PageCanvas page={page} picture={drawn.image} className="preview-canvas" />
+        <OverlayLayer overlays={overlays} />
       </div>
     );
   }
@@ -82,6 +81,9 @@ export function PreviewDialog() {
   const index = pages.findIndex((page) => page.id === previewId);
   const page = pages[index];
   const drawn = usePagePicture(page);
+  const overlays = useSession((state) =>
+    page === undefined ? undefined : state.session.workspace.edits[page.id]?.overlays,
+  );
 
   const go = useCallback(
     (to: number) => {
@@ -146,7 +148,7 @@ export function PreviewDialog() {
             </button>
           </header>
           <div className="preview-stage">
-            <Picture page={page} drawn={drawn} label={title} />
+            <Picture page={page} drawn={drawn} label={title} overlays={overlays} />
           </div>
         </>
       )}
