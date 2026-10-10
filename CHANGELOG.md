@@ -2,11 +2,39 @@
 
 Generated from commit messages by `node tools/changelog.mjs`.
 
+## v2.0.0 (2026-10-10)
+
+### Features
+
+- **web:** say on the empty screen everything the app does, pictures included (#30)
+- custom page size for pictures, and a preview of page and resolution (#29)
+- forms UI and passwords (open protected files, protect the result) (#26)
+- visual signature, and forms that survive merging (#25)
+- crop and bookmarks (and merging keeps the files' bookmarks) (#24)
+- document dialog with numbering, headers, watermarks and metadata (#23)
+- stamps, signatures, crop, metadata and bookmarks in the writer (#22)
+- version 2 foundations (ADR 006 and the core model) (#21)
+
+### Fixes
+
+- **web:** show the signature on the page in the grid and in the preview (#31)
+- nothing left out travels in the result; protected text is encrypted; crop shade; copy metadata (#28)
+- **web:** draw the dragged page under the pointer (#19)
+
+### Documentation
+
+- legal texts, limitations and measurements for version 2 (#27)
+- legal and licensing framework before phase 4 (#20)
+
 ## v1.0.1 (2026-10-09)
 
 ### Fixes
 
 - audit fixes (robustness, compression correctness, Firefox in CI) (#17)
+
+### Chores
+
+- release 1.0.1 (#18)
 
 ## v1.0.0 (2026-10-09)
 

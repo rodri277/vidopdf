@@ -2,7 +2,7 @@
 
 A living checklist of what keeps Vidopdf lawful and open source: what was checked, where the source is, and what only the owner can close. It is engineering due diligence, **not legal advice**. Decisions are in [ADR 005](adr/005-license-policy.md) and [ADR 016](adr/016-legal-and-licensing-framework.md); the in-app texts are in `apps/web/src/legal/`.
 
-Status: **done** (verified, with how), **owner** (only the owner can do it), **watch** (re-check when something changes).
+Status: **done** (verified, with how), **owner** (only the owner can do it), **optional** (a precaution, not a requirement), **watch** (re-check when something changes).
 
 ## Licenses and notices
 
@@ -22,7 +22,7 @@ Status: **done** (verified, with how), **owner** (only the owner can do it), **w
 | Item                              | Status | How it is kept                                                                                                                                                                                                |
 | --------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Files never leave the device      | done   | Strict CSP (`vercel.json`), E2E test that fails on any request to another origin.                                                                                                                             |
-| No analytics, no cookies          | done   | Only `localStorage` for language and thumbnail size. **Owner:** never enable Vercel Web Analytics or Speed Insights.                                                                                          |
+| No analytics, no cookies          | done   | Only `localStorage` for language and thumbnail size. Just do not switch on Vercel Web Analytics or Speed Insights.                                                                                            |
 | Hosting logs (Vercel)             | done   | Described in the privacy statement. EU-U.S. Data Privacy Framework certification checked on 2026-10-09 in Vercel's own documentation. **Owner:** confirm it on dataprivacyframework.gov/list when convenient. |
 | Texts in the app and `PRIVACY.md` | done   | Updated with every feature that changes what is handled. Not reviewed by a lawyer: **owner** (recommended before wide promotion).                                                                             |
 
@@ -39,26 +39,22 @@ Status: **done** (verified, with how), **owner** (only the owner can do it), **w
 
 ## Export controls on cryptography
 
-Passwords reuse AES from the PDF library (public open-source software); Vidopdf adds no cryptography of its own.
+Passwords reuse AES from the PDF library (public open-source software); Vidopdf adds no cryptography of its own, and AES is standard cryptography.
 
-- **United States (EAR):** publicly available encryption source code is not subject to the EAR once the notification of section 742.15(b) is sent, where that applies. **Owner, before tagging v2.0.0:** send a short e-mail to BIS and the ENC coordinator naming the public repository URL (it costs nothing and covers the question). The text is in the next section.
-- **European Union (Reg. 2021/821):** category 5 part 2 is not released only because software is public; whether the exclusion for items whose cryptography merely supports another primary function applies needs a reading of the regulation. **Owner, before tagging v2.0.0:** ask a lawyer to confirm.
+- **United States (EAR):** nothing to do. Since the rule of 29 March 2021, publicly available encryption source code no longer needs the e-mail notification of section 742.15(b); only code with proprietary or non-standard cryptography is still reported. Vidopdf has none.
+- **European Union (Reg. 2021/821):** the general software note leaves out software that is in the public domain or generally available to the public, which a free open-source project is. This is the developer's reading, not legal advice; it would be worth a lawyer's look only if the project were ever sold or built into a commercial product.
 - Spain: no additional restriction known.
 
-Suggested notification (subject "Encryption source code publicly available notification"):
-
-> The open-source project Vidopdf (MIT license) is publicly available at https://github.com/rodri277/vidopdf. It is a browser-based PDF tool. Its optional password protection uses the AES implementation of the open-source library @cantoo/pdf-lib (MIT); the project contains no cryptography of its own. This notification is sent under section 742.15(b) of the EAR as a precaution.
-
-Send to crypt@bis.doc.gov and enc@nsa.gov (check both addresses on bis.gov before sending).
+Re-check this section if the project ever adds cryptography of its own (it would then be non-standard and reportable) or becomes commercial.
 
 ## Names, marks and claims
 
-| Item                            | Status    | Notes                                                                                                                                                                                       |
-| ------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| "PDF"                           | done      | Open standard (ISO 32000), used descriptively.                                                                                                                                              |
-| Adobe, Acrobat and other brands | done      | Not used. The README and the interface never compare with named products, and never talk about unlocking or removing protections.                                                           |
-| Name "Vidopdf"                  | **owner** | A web search found no product with that name (only Vid2PDF, an extension that turns video into PDF). EUIPO eSearch plus and OEPM cannot be searched from here: do it before wide promotion. |
-| Owner identity                  | done      | Published as the alias vidotho (free, ad-free, non-commercial). If it ever earns income, the full identification that Law 34/2002 (LSSI-CE) requires becomes mandatory.                     |
+| Item                            | Status   | Notes                                                                                                                                                                                                                                                  |
+| ------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| "PDF"                           | done     | Open standard (ISO 32000), used descriptively.                                                                                                                                                                                                         |
+| Adobe, Acrobat and other brands | done     | Not used. The README and the interface never compare with named products, and never talk about unlocking or removing protections.                                                                                                                      |
+| Name "Vidopdf"                  | optional | A web search found no product with that name (only Vid2PDF, an extension that turns video into PDF). EUIPO eSearch plus and OEPM cannot be searched from here: a quick search there is worth doing only if the project is going to be promoted widely. |
+| Owner identity                  | done     | Published as the alias vidotho (free, ad-free, non-commercial). If it ever earns income, the full identification that Law 34/2002 (LSSI-CE) requires becomes mandatory.                                                                                |
 
 ## Accessibility
 
@@ -66,5 +62,5 @@ The European Accessibility Act (Directive 2019/882, Ley 11/2023) does not reach 
 
 ## Other
 
-- **Employment:** art. 97.4 of the TRLPI gives employers the software made in the course of the job. A personal project made outside working hours with own equipment is normally the author's. **Owner:** check the employment contract and code of conduct for clauses on personal projects.
+- **Employment:** art. 97.4 of the TRLPI gives employers the software made in the course of the job. A personal project made outside working hours with own equipment is normally the author's. **Owner, only if employed:** read the employment contract and code of conduct for clauses on personal projects.
 - **Security reports:** `SECURITY.md`.

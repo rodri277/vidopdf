@@ -6,7 +6,7 @@ Un espacio de trabajo para PDFs que funciona al 100 % en tu navegador. Carga uno
 
 ![Carga de tres PDFs, rotar y borrar páginas, deshacer y por último comprimir y exportar](docs/media/demo.gif)
 
-> **Estado: v1.0.0.** Unir, dividir (de cuatro maneras), reordenar, rotar, eliminar, duplicar y extraer páginas; convertir imágenes JPEG y PNG en páginas y páginas en PNG, JPEG o WebP; **comprimir** las imágenes de dentro de un PDF con tres perfiles y ver el peso real antes de guardar; todo con deshacer y rehacer, atajos de teclado y una interfaz en español e inglés. Privacidad, aviso legal, términos y licencias son páginas dentro de la app. Lo que viene después (contraseña, formularios, firma, uso sin conexión) está en [SPEC.md](SPEC.md).
+> **Estado: v2.0.0.** Unir, dividir (de cuatro maneras), reordenar, rotar, recortar, eliminar, duplicar y extraer páginas; convertir imágenes JPEG y PNG en páginas (A4, Carta, el tamaño de la imagen o un tamaño que escribes) y páginas en PNG, JPEG o WebP; **comprimir** las imágenes de dentro de un PDF con tres perfiles y ver el peso real antes de guardar; añadir números de página, encabezados, pies y marcas de agua; editar metadatos y marcadores; añadir una firma visual; rellenar o aplanar formularios; proteger el resultado con contraseña y permisos; todo con deshacer y rehacer, atajos de teclado y una interfaz en español e inglés. Privacidad, aviso legal, términos y licencias son páginas dentro de la app. Lo que viene después (recetas encadenadas, lotes, OCR opcional, comparar dos PDFs, uso sin conexión) está en [SPEC.md](SPEC.md).
 
 ## Teclado
 
@@ -42,7 +42,7 @@ Puertos y adaptadores: un `core` sin DOM, adaptadores sobre `pdfjs-dist` y `@can
 
 ## Medido
 
-2026-10-10, versión 2.0.0 (candidata), portátil Apple M4, Chromium sin interfaz (y WebKit para los E2E). Se reproduce con `pnpm bench`; la tabla completa con todos los números está en [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
+2026-10-10, versión 2.0.0, portátil Apple M4, Chromium sin interfaz (y WebKit para los E2E). Se reproduce con `pnpm bench`; la tabla completa con todos los números está en [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
 
 | Métrica                                                    | Presupuesto (SPEC)                    | Medido                                                                                                                                                       |
 | ---------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |

@@ -6,7 +6,7 @@ A PDF workspace that runs 100% in your browser. Load one or several PDFs, see ev
 
 ![Loading three PDFs, rotating and deleting pages, undoing, then compressing and exporting](docs/media/demo.gif)
 
-> **Status: v1.0.0.** Merge, split (four ways), reorder, rotate, delete, duplicate and extract pages; turn JPEG and PNG pictures into pages and pages into PNG, JPEG or WebP; **compress** the pictures inside a PDF with three presets and see the real size before saving; all with undo and redo, keyboard shortcuts and a Spanish and English interface. Privacy, legal notice, terms and licenses are pages inside the app. What comes next (password protection, forms, signing, offline use) is in [SPEC.md](SPEC.md).
+> **Status: v2.0.0.** Merge, split (four ways), reorder, rotate, crop, delete, duplicate and extract pages; turn JPEG and PNG pictures into pages (A4, Letter, the picture's size or a size you type) and pages into PNG, JPEG or WebP; **compress** the pictures inside a PDF with three presets and see the real size before saving; add page numbers, headers, footers and watermarks; edit metadata and bookmarks; add a visual signature; fill or flatten forms; protect the result with a password and permissions; all with undo and redo, keyboard shortcuts and a Spanish and English interface. Privacy, legal notice, terms and licenses are pages inside the app. What comes next (chained recipes, batches, optional OCR, comparing two PDFs, offline use) is in [SPEC.md](SPEC.md).
 
 ## Keyboard
 
@@ -42,7 +42,7 @@ Ports and adapters: a DOM-free `core`, adapters over `pdfjs-dist` and `@cantoo/p
 
 ## Measured
 
-2026-10-10, version 2.0.0 (release candidate), Apple M4 laptop, headless Chromium (and WebKit for the E2E). Reproduce with `pnpm bench`; the full table with every number is in [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
+2026-10-10, version 2.0.0, Apple M4 laptop, headless Chromium (and WebKit for the E2E). Reproduce with `pnpm bench`; the full table with every number is in [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
 
 | Metric                                             | Budget (SPEC)                 | Measured                                                                                                                    |
 | -------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
