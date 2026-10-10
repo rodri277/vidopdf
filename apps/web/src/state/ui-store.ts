@@ -23,7 +23,7 @@ function initialSize(): number {
 }
 
 export type ExportMode = 'pdf' | 'split' | 'images';
-export type DocumentTab = 'numbering' | 'watermark' | 'metadata';
+export type DocumentTab = 'numbering' | 'watermark' | 'bookmarks' | 'metadata';
 
 /** What the picture form holds. */
 export interface ImageDraft {

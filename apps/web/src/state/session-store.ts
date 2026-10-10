@@ -10,6 +10,7 @@ import {
   outputCompression,
   clearSelection,
   cropPages,
+  fromOutlines,
   createSession,
   deletePages,
   duplicatePages,
@@ -32,7 +33,10 @@ import {
   withWorkspace,
 } from '@vidopdf/core';
 import type {
+  BookmarkMode,
+  BookmarkNode,
   Command,
+  ExportOptions,
   CompressionPreset,
   ExportPlan,
   ImageExportOptions,
@@ -164,6 +168,15 @@ export interface SessionState {
   /** Sets or removes (null) the stamp of a slot; consecutive changes of one `field` are one undo step. */
   setStamp: (slot: StampSlot, stamp: Stamp | null, field?: string) => void;
   setMetadata: (metadata: MetadataSettings) => void;
+  /** Keep the bookmarks of the files (auto), edit them by hand (custom) or write none. */
+  setBookmarkMode: (mode: BookmarkMode) => void;
+  /** Changes the hand-made tree; changes with the same `field` merge into one undo step. */
+  editBookmarks: (
+    change: (nodes: readonly BookmarkNode[]) => BookmarkNode[],
+    field?: string,
+  ) => void;
+  /** Starts a hand-made tree from the bookmarks of the loaded files. */
+  importBookmarks: () => Promise<void>;
   /** Crops the selected pages (as the reader sees them); no margins removes the crop. */
   cropSelected: (margins: Margins | undefined) => void;
   addAsset: (file: File) => Promise<AssetInfo | AssetProblem>;
@@ -391,18 +404,42 @@ export function createSessionStore(deps: SessionDeps) {
       else set({ job: { phase: 'failed', job, failure: outcome.error } });
     }
 
-    async function runPlan(job: JobKind, plan: ExportPlan, archiveName: string): Promise<void> {
-      const outputs = toPlanned(plan);
-      const total = outputs.reduce((sum, output) => sum + output.pages.length, 0);
-      if (outputs.length === 0 || busy()) return;
+    /**
+     * Starts a job at once (so the dialog shows it) and builds its plan afterwards, because the
+     * plan needs the bookmarks of the files, which have to be read. A cancel in between is kept.
+     */
+    async function runPlan(
+      job: JobKind,
+      expected: number,
+      makePlan: (options: ExportOptions) => ExportPlan | undefined,
+      archiveName: string,
+    ): Promise<void> {
+      if (expected === 0 || busy()) return;
       const jobId = ++jobCounter;
+      // An object, because the cancel arrives from somewhere else while the plan is being built.
+      const stop = { requested: false };
       cancelActive = () => {
+        stop.requested = true;
         deps.exportWorker().cancelJob(jobId);
       };
-      const compressing = outputs.some((output) => output.compression !== undefined);
+      const compressing = presetOf(get().compression) !== undefined;
       set({
-        job: { phase: 'running', job, done: 0, total, ...(compressing ? { compressing } : {}) },
+        job: {
+          phase: 'running',
+          job,
+          done: 0,
+          total: expected,
+          ...(compressing ? { compressing } : {}),
+        },
       });
+      const options = await exportOptions();
+      const plan = stop.requested ? undefined : makePlan(options);
+      const outputs = plan === undefined ? [] : toPlanned(plan);
+      if (outputs.length === 0) {
+        cancelActive = undefined;
+        set({ job: { phase: 'idle' } });
+        return;
+      }
       finish(
         job,
         await deps
@@ -417,12 +454,27 @@ export function createSessionStore(deps: SessionDeps) {
       return err(pdfError('internal', describeFailure(error)));
     }
 
+    /** The bookmark tree to write: the files' own, the hand-made one, or none. */
+    async function bookmarkNodes(mode: BookmarkMode): Promise<BookmarkNode[]> {
+      const ws = workspace();
+      if (mode === 'none') return [];
+      if (mode === 'custom') return [...ws.bookmarks.nodes];
+      await get().loadOutlines();
+      const outlines = ws.sources.map((source) => ({
+        sourceId: source.id,
+        entries: get().outlines[source.id] ?? [],
+      }));
+      return fromOutlines(outlines, ws.pages, deps.newId);
+    }
+
     const baseName = () => suggestedBaseName(workspace());
-    const compressionOption = () => {
+    /** What every export takes besides its pages: compression, the day, the bookmarks. */
+    const exportOptions = async () => {
       const preset = presetOf(get().compression);
       // The day of export, in the user's own calendar, for {date} in a stamp.
       const date = new Date().toLocaleDateString('sv-SE');
-      return preset === undefined ? { date } : { compression: preset, date };
+      const bookmarks = await bookmarkNodes(workspace().bookmarks.mode);
+      return { date, bookmarks, ...(preset === undefined ? {} : { compression: preset }) };
     };
 
     return {
@@ -464,6 +516,22 @@ export function createSessionStore(deps: SessionDeps) {
         const ids = ws.selection.filter((id) => originals.has(id));
         // Dragging an edge is one undo step; a different set of pages is a new one.
         if (ids.length > 0) run(cropPages(ws, ids, margins, `crop:${ids.join(',')}`));
+      },
+
+      setBookmarkMode(mode) {
+        run(setFields('bookmarks', { bookmarks: { ...workspace().bookmarks, mode } }));
+      },
+
+      editBookmarks(change, field) {
+        const current = workspace().bookmarks;
+        const nodes = change(current.nodes);
+        const mergeKey = field === undefined ? undefined : `bookmarks:${field}`;
+        run(setFields('bookmarks', { bookmarks: { mode: 'custom', nodes } }, mergeKey));
+      },
+
+      async importBookmarks() {
+        const nodes = await bookmarkNodes('auto');
+        run(setFields('bookmarks', { bookmarks: { mode: 'custom', nodes } }));
       },
 
       setMetadata(metadata) {
@@ -677,17 +745,21 @@ export function createSessionStore(deps: SessionDeps) {
       },
 
       async startExport() {
-        if (workspace().pages.length > 0)
-          await runPlan(
-            'pdf',
-            buildExportPlan(workspace(), { base: baseName(), ...compressionOption() }),
-            `${baseName()}.zip`,
-          );
+        await runPlan(
+          'pdf',
+          workspace().pages.length,
+          (options) => buildExportPlan(workspace(), { base: baseName(), ...options }),
+          `${baseName()}.zip`,
+        );
       },
 
       async extractSelection() {
-        const plan = buildExtractPlan(workspace(), { base: baseName(), ...compressionOption() });
-        if (plan !== undefined) await runPlan('extract', plan, `${baseName()}_extract.zip`);
+        await runPlan(
+          'extract',
+          workspace().selection.length,
+          (options) => buildExtractPlan(workspace(), { base: baseName(), ...options }),
+          `${baseName()}_extract.zip`,
+        );
       },
 
       async runSplit() {
@@ -695,7 +767,8 @@ export function createSessionStore(deps: SessionDeps) {
         if (split.phase !== 'ready') return;
         await runPlan(
           'split',
-          buildSplitPlan(workspace(), split.groups, baseName(), compressionOption()),
+          split.groups.reduce((total, group) => total + group.pages.length, 0),
+          (options) => buildSplitPlan(workspace(), split.groups, baseName(), options),
           `${baseName()}_split.zip`,
         );
       },
