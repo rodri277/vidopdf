@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import type { PointerEvent } from 'react';
 import { normalizeCrop } from '@vidopdf/core';
 import type { Margins, PageRef, RenderedPage } from '@vidopdf/core';
+import { PageCanvas } from '../PageCanvas';
 
 type Edge = keyof Margins;
 
@@ -22,26 +23,7 @@ const EDGES: readonly Edge[] = ['top', 'right', 'bottom', 'left'];
  * which is how margins are stored.
  */
 export function CropCanvas({ page, picture, margins, onChange, pixelsRef }: Props) {
-  const canvas = useRef<HTMLCanvasElement>(null);
   const frame = useRef<HTMLDivElement>(null);
-  const sideways = page.rotation === 90 || page.rotation === 270;
-  const [width, height] = sideways
-    ? [picture.height, picture.width]
-    : [picture.width, picture.height];
-
-  useEffect(() => {
-    const element = canvas.current;
-    const context = element?.getContext('2d');
-    if (element === null || context === null || context === undefined) return;
-    element.width = width;
-    element.height = height;
-    context.save();
-    context.translate(width / 2, height / 2);
-    context.rotate((page.rotation * Math.PI) / 180);
-    context.drawImage(picture.image, -picture.width / 2, -picture.height / 2);
-    context.restore();
-    pixelsRef.current = () => context.getImageData(0, 0, width, height);
-  }, [picture, page.rotation, width, height, pixelsRef]);
 
   const drag = (edge: Edge) => (event: PointerEvent<HTMLDivElement>) => {
     if (event.buttons === 0) return;
@@ -62,7 +44,7 @@ export function CropCanvas({ page, picture, margins, onChange, pixelsRef }: Prop
 
   return (
     <div className="crop-frame" ref={frame} style={style}>
-      <canvas ref={canvas} className="crop-canvas" aria-hidden="true" />
+      <PageCanvas page={page} picture={picture} className="crop-canvas" pixelsRef={pixelsRef} />
       <div className="crop-dim crop-dim-top" aria-hidden="true" />
       <div className="crop-dim crop-dim-bottom" aria-hidden="true" />
       <div className="crop-dim crop-dim-left" aria-hidden="true" />

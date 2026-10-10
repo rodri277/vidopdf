@@ -891,3 +891,48 @@ describe('bookmarks', () => {
     expect(written(ctx)).toEqual([]);
   });
 });
+
+describe('signatures', () => {
+  const overlay = { id: 'o1', assetId: 'sig', x: 0.5, y: 0.8, width: 0.3, aspect: 0.4 };
+
+  it('places a signature on an original page, moving it is one step, and undo takes it away', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    const page = ids(ctx)[1] ?? '';
+    ctx.store.getState().placeSignature(page, overlay);
+    for (const x of [0.45, 0.4, 0.35]) ctx.store.getState().placeSignature(page, { ...overlay, x });
+    expect(ws(ctx).edits[page]?.overlays).toEqual([{ ...overlay, x: 0.35 }]);
+    // Placing it and dragging it straight away are one step.
+    ctx.store.getState().undo();
+    expect(ws(ctx).edits).toEqual({});
+    ctx.store.getState().redo();
+    expect(ws(ctx).edits[page]?.overlays).toEqual([{ ...overlay, x: 0.35 }]);
+  });
+
+  it('removes it, and leaves blank pages and unknown pages alone', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    const page = ids(ctx)[0] ?? '';
+    ctx.store.getState().placeSignature(page, overlay);
+    ctx.store.getState().removeSignature(page, 'o1');
+    expect(ws(ctx).edits).toEqual({});
+    ctx.store.getState().insertBlankAfterSelection();
+    const blank = ws(ctx).pages.find((candidate) => candidate.kind === 'blank');
+    ctx.store.getState().placeSignature(blank?.id ?? '', overlay);
+    ctx.store.getState().placeSignature('ghost', overlay);
+    expect(ws(ctx).edits).toEqual({});
+  });
+
+  it('goes to the exported page with its position', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().placeSignature(ids(ctx)[0] ?? '', overlay);
+    await ctx.store.getState().startExport();
+    await vi.waitFor(() => {
+      expect(ctx.exportWorker.runPlan).toHaveBeenCalled();
+    });
+    const pages = vi.mocked(ctx.exportWorker.runPlan).mock.calls.at(-1)?.[1][0]?.pages;
+    expect(pages?.[0]).toMatchObject({ overlays: [{ assetId: 'sig', x: 0.5 }] });
+    expect(pages?.[1]).not.toHaveProperty('overlays');
+  });
+});

@@ -11,7 +11,7 @@ import {
 import type { DragStartEvent, MeasuringConfiguration } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import { renderKey } from '@vidopdf/core';
-import type { PageRef } from '@vidopdf/core';
+import type { PageEdits, PageRef } from '@vidopdf/core';
 import { useSession } from '../state/session';
 import { useUi } from '../state/ui-store';
 import { thumbnails } from '../thumbnails/thumbnails';
@@ -70,6 +70,11 @@ function useViewport(target: React.RefObject<HTMLDivElement | null>): Viewport {
 function pointerInContent(scroller: HTMLElement, clientX: number, clientY: number) {
   const box = scroller.getBoundingClientRect();
   return { x: clientX - box.left + scroller.scrollLeft, y: clientY - box.top + scroller.scrollTop };
+}
+
+/** What the card of a page shows about its edits. */
+function editMarks(edits: PageEdits | undefined) {
+  return { cropped: edits?.crop !== undefined, signed: (edits?.overlays?.length ?? 0) > 0 };
 }
 
 export function PageGrid() {
@@ -325,7 +330,7 @@ export function PageGrid() {
               selected={selected.has(page.id)}
               active={index === activeIndex}
               dragging={dragging.includes(page.id)}
-              cropped={workspace.edits[page.id]?.crop !== undefined}
+              {...editMarks(workspace.edits[page.id])}
               onSelect={onSelect}
               onOpen={openPreview}
             />

@@ -24,6 +24,7 @@ const DocumentDialog = lazy(() =>
   import('./document/DocumentDialog').then((m) => ({ default: m.DocumentDialog })),
 );
 const CropDialog = lazy(() => import('./crop/CropDialog').then((m) => ({ default: m.CropDialog })));
+const SignDialog = lazy(() => import('./sign/SignDialog').then((m) => ({ default: m.SignDialog })));
 const PreviewDialog = lazy(() =>
   import('./PreviewDialog').then((m) => ({ default: m.PreviewDialog })),
 );
@@ -43,6 +44,7 @@ export function App() {
   const exportOpen = exportRequested || jobActive;
   const documentOpen = useUi((state) => state.documentOpen);
   const cropOpen = useUi((state) => state.cropOpen);
+  const signOpen = useUi((state) => state.signOpen);
   const importOpen = useSession((state) => state.pendingImages.length > 0);
   const legalPage = useLegalPage();
   const onFiles = useCallback(
@@ -78,6 +80,7 @@ export function App() {
         {importOpen && <ImageImportDialog />}
         {documentOpen && <DocumentDialog />}
         {cropOpen && <CropDialog />}
+        {signOpen && <SignDialog />}
       </Suspense>
       {previewOpen && (
         <Suspense fallback={null}>
