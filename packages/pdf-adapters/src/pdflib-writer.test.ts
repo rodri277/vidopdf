@@ -24,9 +24,8 @@ describe('inspect', () => {
     ['zero-bytes.pdf', 'empty'],
     ['not-a-pdf.pdf', 'corrupt'],
     ['truncated.pdf', 'corrupt'],
-    ['encrypted-owner-restricted.pdf', 'encrypted'],
-    ['encrypted-user-password.pdf', 'encrypted'],
-  ])('rejects %s as %s without throwing', async (name, kind) => {
+    ['encrypted-user-password.pdf', 'passwordRequired'],
+  ])('turns down %s as %s without throwing', async (name, kind) => {
     const result = await writer.inspect(fixture(name));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe(kind);

@@ -81,6 +81,7 @@ export type {
   PdfInfo,
   PdfRenderer,
   PdfWriter,
+  ProtectOptions,
   RenderedPage,
   WriteOptions,
 } from './ports';

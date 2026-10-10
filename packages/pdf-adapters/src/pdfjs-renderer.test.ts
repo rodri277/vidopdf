@@ -273,7 +273,20 @@ describe('opening documents', () => {
     });
     expect(await renderer.open(fixture('encrypted-user-password.pdf'))).toMatchObject({
       ok: false,
-      error: { kind: 'encrypted' },
+      error: { kind: 'passwordRequired' },
+    });
+    expect(
+      await renderer.open(fixture('encrypted-user-password.pdf'), { password: 'wrong' }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'wrongPassword' },
+    });
+    expect(
+      await renderer.open(fixture('encrypted-user-password.pdf'), { password: 'fixture-user' }),
+    ).toMatchObject({ ok: true, value: { pageCount: 1 } });
+    // A file that only restricts what readers may do opens, as in any viewer.
+    expect(await renderer.open(fixture('encrypted-owner-restricted.pdf'))).toMatchObject({
+      ok: true,
     });
     expect(await renderer.open(fixture('zero-bytes.pdf'))).toMatchObject({ ok: false });
   });
