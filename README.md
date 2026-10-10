@@ -42,22 +42,23 @@ Ports and adapters: a DOM-free `core`, adapters over `pdfjs-dist` and `@cantoo/p
 
 ## Measured
 
-2026-10-09, version 1.0.0, Apple M4 laptop, headless Chromium (and WebKit for the E2E). Reproduce with `pnpm bench`; the full table with every number is in [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
+2026-10-10, version 2.0.0 (release candidate), Apple M4 laptop, headless Chromium (and WebKit for the E2E). Reproduce with `pnpm bench`; the full table with every number is in [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
 
-| Metric                                             | Budget (SPEC)                 | Measured                                                                                                                   |
-| -------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Scroll of a 1000-page document                     | 60 fps, no task over 50 ms    | 60 fps, no frame over 20 ms, no long task (also with the main thread 4x slower)                                            |
-| Reorder, rotate or delete 1 to 1000 pages          | under 100 ms                  | about 31 ms painted (the work itself takes 0.1 to 1.8 ms)                                                                  |
-| Merge 20 files and 500 pages                       | no blocking, progress visible | 1.5 s, 29 to 33 progress steps, no long task                                                                               |
-| First thumbnails of a 1000-page document           | 1 s for 300 pages             | 0.3 to 0.4 s                                                                                                               |
-| Memory, 500 text pages / 500 scanned pages (97 MB) | measured and documented       | 0.5 GB / 1.1 GB, peak 1.3 GB exporting ([ADR 015](docs/adr/015-benchmarks-and-memory.md))                                  |
-| Warning for too much loaded PDF                    | adjusted with data            | 150 MB (was 250 MB)                                                                                                        |
-| Initial JavaScript                                 | 150 kB gzip                   | 107.3 kB                                                                                                                   |
-| `packages/core` coverage                           | 90 % lines                    | 99.6 %                                                                                                                     |
-| Tests                                              |                               | 192 core, 126 adapters, 150 web, 9 architecture rules, 9 benchmark helpers, 89 E2E in each of Chromium, WebKit and Firefox |
-| Lighthouse (desktop, local build)                  | 95 to 100                     | 100 / 100 / 100 / 100 on the workspace and on a legal page ([benchmarks/LIGHTHOUSE.md](benchmarks/LIGHTHOUSE.md))          |
-| Compression, median saving on photographic PDFs    | 40 % at "balanced"            | 96 % (synthetic corpus, see below)                                                                                         |
-| Compress 500 scanned pages (165 MB)                | measured and documented       | 42 % smaller in 18 s, renderer peak 1.8 GB                                                                                 |
+| Metric                                             | Budget (SPEC)                 | Measured                                                                                                                    |
+| -------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Scroll of a 1000-page document                     | 60 fps, no task over 50 ms    | 60 fps, no frame over 20 ms, no long task (also with the main thread 4x slower)                                             |
+| Reorder, rotate or delete 1 to 1000 pages          | under 100 ms                  | about 31 ms painted (the work itself takes 0.1 to 1.8 ms)                                                                   |
+| Merge 20 files and 500 pages                       | no blocking, progress visible | 1.5 s, 29 to 33 progress steps, no long task                                                                                |
+| First thumbnails of a 1000-page document           | 1 s for 300 pages             | 0.3 to 0.4 s                                                                                                                |
+| Memory, 500 text pages / 500 scanned pages (97 MB) | measured and documented       | 0.5 GB / 1.1 GB, peak 1.3 GB exporting ([ADR 015](docs/adr/015-benchmarks-and-memory.md))                                   |
+| Warning for too much loaded PDF                    | adjusted with data            | 150 MB (was 250 MB)                                                                                                         |
+| Initial JavaScript                                 | 150 kB gzip                   | 98.5 kB                                                                                                                     |
+| `packages/core` coverage                           | 90 % lines                    | 99.0 %                                                                                                                      |
+| Tests                                              |                               | 260 core, 172 adapters, 184 web, 9 architecture rules, 9 benchmark helpers, 133 E2E in each of Chromium, WebKit and Firefox |
+| Lighthouse (desktop, local build)                  | 95 to 100                     | 100 / 100 / 100 / 100 on the workspace and on a legal page ([benchmarks/LIGHTHOUSE.md](benchmarks/LIGHTHOUSE.md))           |
+| Compression, median saving on photographic PDFs    | 40 % at "balanced"            | 96 % (synthetic corpus, see below)                                                                                          |
+| Compress 500 scanned pages (165 MB)                | measured and documented       | 42 % smaller in 18 s, renderer peak 1.8 GB                                                                                  |
+| Export 500 pages with page numbers and a watermark | measured and documented       | 1.3 s (0.8 s without them)                                                                                                  |
 
 ## Compression, measured
 
