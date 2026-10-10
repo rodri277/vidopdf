@@ -3,6 +3,57 @@ import { useTranslation } from 'react-i18next';
 import { MAX_METADATA_LENGTH, parseKeywords } from '@vidopdf/core';
 import { useSession } from '../../state/session';
 
+/** Copies what a loaded file says about itself, to start from it instead of from nothing. */
+function ImportFromFile() {
+  const { t } = useTranslation();
+  const sources = useSession((state) => state.session.workspace.sources);
+  const [chosen, setChosen] = useState('');
+  const [outcome, setOutcome] = useState<'done' | 'none' | undefined>();
+  if (sources.length === 0) return null;
+  const sourceId = sources.some((source) => source.id === chosen) ? chosen : sources[0]?.id;
+  return (
+    <div className="field-row">
+      <label className="field">
+        <span>{t('document.metadata.importFrom')}</span>
+        <select
+          value={sourceId}
+          onChange={(event) => {
+            setChosen(event.target.value);
+            setOutcome(undefined);
+          }}
+          aria-label={t('document.metadata.importFile')}
+        >
+          {sources.map((source) => (
+            <option key={source.id} value={source.id}>
+              {source.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        type="button"
+        className="btn"
+        onClick={() => {
+          if (sourceId === undefined) return;
+          void useSession
+            .getState()
+            .importMetadata(sourceId)
+            .then((found) => {
+              setOutcome(found ? 'done' : 'none');
+            });
+        }}
+      >
+        {t('document.metadata.import')}
+      </button>
+      {outcome !== undefined && (
+        <span role="status" className="muted">
+          {t(outcome === 'done' ? 'document.metadata.importDone' : 'document.metadata.importNone')}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Title, author, subject and keywords of the output. Empty fields are left out of the file. */
 export function MetadataPanel() {
   const { t } = useTranslation();
@@ -35,6 +86,7 @@ export function MetadataPanel() {
     <fieldset className="stamp-form">
       <legend>{t('document.metadata.title')}</legend>
       <p className="muted">{t('document.metadata.hint')}</p>
+      <ImportFromFile />
       <div className="stamp-fields">
         {text('title')}
         {text('author')}

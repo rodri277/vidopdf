@@ -34,6 +34,7 @@ import {
   toggleSelection,
   undo,
   withWorkspace,
+  hasMetadata,
 } from '@vidopdf/core';
 import type {
   BookmarkMode,
@@ -219,6 +220,11 @@ export interface SessionState {
   /** Sets or removes (null) the stamp of a slot; consecutive changes of one `field` are one undo step. */
   setStamp: (slot: StampSlot, stamp: Stamp | null, field?: string) => void;
   setMetadata: (metadata: MetadataSettings) => void;
+  /**
+   * Takes the title, author, subject and keywords a loaded file has. Fields the file leaves empty
+   * are left as they are. Resolves to whether the file had anything.
+   */
+  importMetadata: (sourceId: string) => Promise<boolean>;
   /** Keep the bookmarks of the files (auto), edit them by hand (custom) or write none. */
   setBookmarkMode: (mode: BookmarkMode) => void;
   /** Changes the hand-made tree; changes with the same `field` merge into one undo step. */
@@ -693,6 +699,24 @@ export function createSessionStore(deps: SessionDeps) {
 
       setMetadata(metadata) {
         run(setFields('metadata', { metadata }, 'metadata'));
+      },
+
+      async importMetadata(sourceId) {
+        const read = await deps.renderWorker().metadata(sourceId).catch(failedOutright);
+        if (!read.ok || !hasMetadata(read.value)) return false;
+        const current = workspace().metadata;
+        const found = read.value;
+        run(
+          setFields('metadata', {
+            metadata: {
+              title: found.title === '' ? current.title : found.title,
+              author: found.author === '' ? current.author : found.author,
+              subject: found.subject === '' ? current.subject : found.subject,
+              keywords: found.keywords.length === 0 ? current.keywords : found.keywords,
+            },
+          }),
+        );
+        return true;
       },
 
       async addAsset(file) {

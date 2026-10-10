@@ -1,5 +1,12 @@
-import { PDFDict, PDFDocument, PDFName, PDFNumber, degrees } from '@cantoo/pdf-lib';
-import type { PDFPage } from '@cantoo/pdf-lib';
+import {
+  PDFDict,
+  PDFDocument,
+  PDFName,
+  PDFNumber,
+  PDFObjectCopier,
+  PDFPage,
+  degrees,
+} from '@cantoo/pdf-lib';
 import { err, ok, pdfError } from '@vidopdf/core';
 import { cropBox, decodePermissions, isRestricted } from '@vidopdf/core';
 import type {
@@ -15,6 +22,8 @@ import type {
 import { decorate, ImageCache } from './decorate';
 import { readFormInfo } from './decorate/form-info';
 import { applyForms, rebuildForms } from './decorate/forms';
+import { encryptStrings } from './encrypt-strings';
+import { dropUnreachable, tidyAnnotations } from './decorate/prune';
 import type { PlacedPage } from './decorate/forms';
 import { drawOverlays } from './decorate/overlays';
 import { quarterTurn } from './decorate/page-geometry';
@@ -103,6 +112,7 @@ async function protect(
       ownerPassword: options.ownerPassword,
       permissions: toLibraryPermissions(options.permissions),
     });
+    encryptStrings(doc);
     return ok(await doc.save({ useObjectStreams: false }));
   } catch (error) {
     return err(pdfError('internal', describe(error)));
@@ -169,12 +179,33 @@ function applyCrop(
   page.setCropBox(base.x + box.x, base.y + box.y, box.width, box.height);
 }
 
+/**
+ * Copies pages from the sources. Pages of one file share a copier while no page repeats, so what
+ * they share (a font, the parent of a field with buttons on several pages) is copied once and a
+ * field stays one field. A page used again starts a new copy: its fields must be independent.
+ */
+class PageCopier {
+  private readonly bySource = new Map<string, { copier: PDFObjectCopier; used: Set<number> }>();
+
+  copy(output: PDFDocument, source: PDFDocument, sourceId: string, index: number): PDFPage {
+    let entry = this.bySource.get(sourceId);
+    if (entry === undefined || entry.used.has(index)) {
+      entry = { copier: PDFObjectCopier.for(source.context, output.context), used: new Set() };
+      this.bySource.set(sourceId, entry);
+    }
+    entry.used.add(index);
+    const node = entry.copier.copy(source.getPage(index).node);
+    return PDFPage.of(node, output.context.register(node), output);
+  }
+}
+
 async function addPage(
   output: PDFDocument,
   docs: ReadonlyMap<string, PDFDocument>,
   selection: ExportPage,
   images: ImageCache,
   placed: PlacedPage[],
+  copier: PageCopier,
 ): Promise<PdfError | undefined> {
   if (selection.kind === 'blank') {
     output.addPage([selection.width, selection.height]).setRotation(degrees(selection.rotation));
@@ -184,8 +215,7 @@ async function addPage(
   if (source === undefined || selection.pageIndex >= source.getPageCount()) {
     return pdfError('internal', `page ${String(selection.pageIndex)} of ${selection.sourceId}`);
   }
-  const [page] = await output.copyPages(source, [selection.pageIndex]);
-  if (page === undefined) return pdfError('internal', 'copyPages returned nothing');
+  const page = copier.copy(output, source, selection.sourceId, selection.pageIndex);
   // Some files carry /Rotate -90 or 450; both are legal, the sum is kept in 0 to 270.
   const turned = (((page.getRotation().angle + selection.rotation) % 360) + 360) % 360;
   page.setRotation(degrees(turned));
@@ -220,9 +250,10 @@ async function addPages(
   placed: PlacedPage[],
   options: WriteOptions,
 ): Promise<PdfError | undefined> {
+  const copier = new PageCopier();
   for (const [done, selection] of pages.entries()) {
     if (options.signal?.aborted === true) return pdfError('cancelled');
-    const failure = await addPage(output, docs, selection, images, placed);
+    const failure = await addPage(output, docs, selection, images, placed, copier);
     if (failure !== undefined) return failure;
     options.onProgress?.(done + 1, pages.length);
     // Let a cancel message in a worker's queue be seen without paying a timer per page.
@@ -240,11 +271,14 @@ async function finish(
   env: { fonts: readonly FontFile[]; assets: ReadonlyMap<string, Uint8Array> },
 ): Promise<PdfError | undefined> {
   const origins = rebuildForms(output, sources, placed);
-  if (options.decorations === undefined) return undefined;
-  return (
-    (await applyForms(output, origins, options.decorations)) ??
-    (await decorate(output, options.decorations, env))
-  );
+  tidyAnnotations(output, placed);
+  const failure =
+    options.decorations === undefined
+      ? undefined
+      : ((await applyForms(output, origins, options.decorations)) ??
+        (await decorate(output, options.decorations, env)));
+  dropUnreachable(output);
+  return failure;
 }
 
 async function assembleUnsafe(

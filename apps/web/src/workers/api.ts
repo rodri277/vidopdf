@@ -3,6 +3,7 @@ import type {
   Decorations,
   EditsByPage,
   FormInfo,
+  MetadataSettings,
   ProtectChoice,
   EncodedImage,
   ExportPage,
@@ -114,6 +115,8 @@ export interface RenderWorkerApi {
   release(sourceId: string): Promise<void>;
   /** The bookmarks of an open document. */
   outline(sourceId: string): Promise<Result<OutlineEntry[], PdfError>>;
+  /** The title, author, subject and keywords a loaded file has. */
+  metadata(sourceId: string): Promise<Result<MetadataSettings, PdfError>>;
   /** Which image formats this browser can encode, so the dialog only offers what works. */
   encodableFormats(): Promise<readonly ImageExportOptions['format'][]>;
   /** Pages to pictures, one at a time, packed in a ZIP when there is more than one. */

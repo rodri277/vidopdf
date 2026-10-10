@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { unzipSync } from 'fflate';
 import { describe, expect, it, vi } from 'vitest';
-import { err, ok, pdfError } from '@vidopdf/core';
+import { NO_METADATA, err, ok, pdfError } from '@vidopdf/core';
 import type { EncodedImage, ImageExportOptions, PdfRenderer, Rotation } from '@vidopdf/core';
 import { createZipBuilder } from '@vidopdf/pdf-adapters/zip';
 import type { ImageJobPage } from './api';
@@ -44,6 +44,7 @@ function fakeRenderer(behaviour: { capped?: number[]; fail?: number; slow?: () =
       return Promise.resolve(ok(image));
     },
     outline: () => Promise.resolve(ok([{ title: 'Intro', pageIndex: 0, level: 1 }])),
+    metadata: () => Promise.resolve(ok({ ...NO_METADATA, title: 'Report' })),
     trim: () => {
       trimmed.count++;
       return Promise.resolve();
@@ -100,12 +101,14 @@ describe('documents', () => {
       ok: true,
       value: [{ title: 'Intro', pageIndex: 0, level: 1 }],
     });
+    expect(await core.metadata('s')).toMatchObject({ ok: true, value: { title: 'Report' } });
     await core.release('s');
     expect(await core.render(2, 's', 0, 320)).toMatchObject({
       ok: false,
       error: { kind: 'internal' },
     });
     expect(await core.outline('s')).toMatchObject({ ok: false });
+    expect(await core.metadata('s')).toMatchObject({ ok: false });
   });
 
   it('closes the renderer of a file that failed to open', async () => {
@@ -116,6 +119,7 @@ describe('documents', () => {
         renderPage: vi.fn(),
         renderImage: vi.fn(),
         outline: vi.fn(),
+        metadata: vi.fn(),
         trim: vi.fn(),
         close,
       }),

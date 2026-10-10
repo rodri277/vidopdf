@@ -55,9 +55,15 @@ function describe(field: PDFField): FormFieldInfo | undefined {
 }
 
 /** The fields of a file's form that can be filled, and whether it carries XFA data. */
-export async function readFormInfo(bytes: Uint8Array): Promise<Result<FormInfo, PdfError>> {
+export async function readFormInfo(
+  bytes: Uint8Array,
+  password?: string,
+): Promise<Result<FormInfo, PdfError>> {
   try {
-    const doc = await PDFDocument.load(bytes, { updateMetadata: false });
+    const doc = await PDFDocument.load(bytes, {
+      updateMetadata: false,
+      ...(password === undefined ? {} : { password }),
+    });
     const form = doc.getForm();
     const all = form.getFields();
     const fields = all.flatMap((field) => describe(field) ?? []);

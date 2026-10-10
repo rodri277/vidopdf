@@ -1,8 +1,9 @@
 import { PDFDocument, degrees } from '@cantoo/pdf-lib';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MAX_CANVAS_PIXELS } from '@vidopdf/core';
+import { ALL_ALLOWED, MAX_CANVAS_PIXELS } from '@vidopdf/core';
 import type { ImageExportOptions, PdfRenderer } from '@vidopdf/core';
 import { canEncodeImage, createPdfjsRenderer, encodeBlankImage } from './pdfjs-renderer';
+import { createPdfLibWriter } from './pdflib-writer';
 import { decode, napiCanvas, near } from './testing/canvas';
 import { fixture } from './testing/fixtures';
 import { nodeAssets, nodeDocumentOptions, nodePdfjs } from './testing/pdfjs-node';
@@ -336,5 +337,58 @@ describe('renderPage reports the size of the page in points', () => {
     const second = await renderer.renderPage(1, 100);
     expect(first.ok && [first.value.pointsWidth, first.value.pointsHeight]).toEqual([400, 600]);
     expect(second.ok && [second.value.pointsWidth, second.value.pointsHeight]).toEqual([600, 400]);
+  });
+});
+
+describe('metadata', () => {
+  async function documentWithDetails(): Promise<Uint8Array> {
+    const doc = await PDFDocument.create();
+    doc.addPage([100, 100]);
+    doc.setTitle('Informe año 2026');
+    doc.setAuthor('A. Writer');
+    doc.setKeywords(['tax, year']);
+    return doc.save();
+  }
+
+  it('reads title, author, subject and keywords, and leaves empty what the file does not say', async () => {
+    const { renderer } = await open(await documentWithDetails());
+    expect(await renderer.metadata()).toEqual({
+      ok: true,
+      value: {
+        title: 'Informe año 2026',
+        author: 'A. Writer',
+        subject: '',
+        keywords: ['tax', 'year'],
+      },
+    });
+  });
+
+  it('reads them from a file that needs a password, once it was opened with it', async () => {
+    const renderer = createPdfjsRenderer(nodeAssets, {
+      pdfjs: nodePdfjs,
+      createCanvas: napiCanvas(),
+      documentOptions: nodeDocumentOptions,
+    });
+    opened.push(renderer);
+    const locked = await createPdfLibWriter().protect(await documentWithDetails(), {
+      userPassword: 'open',
+      ownerPassword: 'owner',
+      permissions: ALL_ALLOWED,
+    });
+    if (!locked.ok) throw new Error(locked.error.kind);
+    expect((await renderer.open(locked.value, { password: 'open' })).ok).toBe(true);
+    expect(await renderer.metadata()).toMatchObject({
+      ok: true,
+      value: { title: 'Informe año 2026' },
+    });
+  });
+
+  it('says so when nothing is open', async () => {
+    const renderer = createPdfjsRenderer(nodeAssets, {
+      pdfjs: nodePdfjs,
+      createCanvas: napiCanvas(),
+      documentOptions: nodeDocumentOptions,
+    });
+    expect(await renderer.metadata()).toMatchObject({ ok: false, error: { kind: 'internal' } });
   });
 });

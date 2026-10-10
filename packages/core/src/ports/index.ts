@@ -2,6 +2,7 @@ import type { PdfError } from '../errors';
 import type { Result } from '../result';
 import type { CompressionReport } from '../compression/report';
 import type { Decorations } from '../export/decorations';
+import type { MetadataSettings } from '../document/metadata';
 import type { FormInfo } from '../forms';
 import type { ImageExportOptions } from '../images/export';
 import type { ImagePageOptions } from '../images/layout';
@@ -66,6 +67,8 @@ export interface PdfRenderer<Image> {
     targetWidth: number,
     signal?: AbortSignal,
   ): Promise<Result<RenderedPage<Image>, PdfError>>;
+  /** The title, author, subject and keywords the open document has; empty ones stay empty. */
+  metadata(): Promise<Result<MetadataSettings, PdfError>>;
   /** The bookmarks of the open document, flattened with their level. Entries that point nowhere are left out. */
   outline(): Promise<Result<OutlineEntry[], PdfError>>;
   /**
@@ -107,7 +110,7 @@ export interface PdfWriter {
   /** A one-page PDF holding a JPEG or PNG, laid out as the options say and turned upright by its EXIF data. */
   fromImage(bytes: Uint8Array, options: ImagePageOptions): Promise<Result<Uint8Array, PdfError>>;
   /** The fields of the form of a file, to offer a way to fill them. */
-  readForm(bytes: Uint8Array): Promise<Result<FormInfo, PdfError>>;
+  readForm(bytes: Uint8Array, password?: string): Promise<Result<FormInfo, PdfError>>;
   assemble(
     sources: ReadonlyMap<string, Uint8Array>,
     pages: readonly ExportPage[],

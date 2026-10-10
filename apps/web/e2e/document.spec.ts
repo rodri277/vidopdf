@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { loadFive, openExportDialog, pictureFile, saveResult } from './helpers';
+import { fixture, loadFive, openExportDialog, pictureFile, saveResult } from './helpers';
 
 const tags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
@@ -70,6 +70,20 @@ test('a watermark of text and one of a picture are drawn over the page', async (
     buffer: Buffer.from('not a picture'),
   });
   await expect(dialog.getByRole('alert')).toContainText('Solo se admiten imágenes PNG y JPEG');
+});
+
+test('copies the title of a loaded file, one undo takes it back', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('file-input').setInputFiles([fixture('mixed-sizes-3p.pdf')]);
+  await expect(page.getByRole('option')).toHaveCount(3);
+  const dialog = await openDocument(page);
+  await dialog.getByRole('radio', { name: 'Información' }).check();
+  await expect(dialog.getByLabel('Título')).toHaveValue('');
+  await dialog.getByRole('button', { name: 'Copiar', exact: true }).click();
+  await expect(dialog.getByLabel('Título')).toHaveValue('Fixture A');
+  await expect(dialog.getByRole('status')).toContainText('Datos copiados');
+  await dialog.getByRole('button', { name: 'Deshacer' }).click();
+  await expect(dialog.getByLabel('Título')).toHaveValue('');
 });
 
 test('the exported file has the stamps, the title and no producer', async ({ page }) => {

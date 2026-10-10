@@ -3,6 +3,7 @@ import type {
   EncodedImage,
   ImageExportOptions,
   ImageFormat,
+  MetadataSettings,
   OutlineEntry,
   PdfError,
   PdfInfo,
@@ -83,6 +84,13 @@ export function createRenderCore(deps: RenderCoreDeps) {
     return renderer === undefined
       ? err(pdfError('internal', `unknown source ${sourceId}`))
       : renderer.outline();
+  }
+
+  async function metadata(sourceId: string): Promise<Result<MetadataSettings, PdfError>> {
+    const renderer = documents.get(sourceId);
+    return renderer === undefined
+      ? err(pdfError('internal', `unknown source ${sourceId}`))
+      : renderer.metadata();
   }
 
   async function encodableFormats(): Promise<ImageFormat[]> {
@@ -190,5 +198,15 @@ export function createRenderCore(deps: RenderCoreDeps) {
     jobs.get(jobId)?.abort();
   }
 
-  return { open, render, cancel, release, outline, encodableFormats, exportImages, cancelJob };
+  return {
+    open,
+    render,
+    cancel,
+    release,
+    outline,
+    metadata,
+    encodableFormats,
+    exportImages,
+    cancelJob,
+  };
 }
