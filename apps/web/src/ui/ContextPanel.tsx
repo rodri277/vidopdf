@@ -10,10 +10,13 @@ export function ContextPanel() {
   const count = workspace.selection.length;
   const exporting = useSession((state) => state.job.phase !== 'idle');
   const { extractSelection } = useSession.getState();
-  const { openExport } = useUi.getState();
+  const { openExport, openCrop } = useUi.getState();
   // "Split here" cuts after the last selected page; with that page last there is nothing to cut.
   const lastSelected =
     workspace.pages.findLastIndex((page) => workspace.selection.includes(page.id)) + 1;
+  const canCrop = workspace.pages.some(
+    (page) => page.kind === 'original' && workspace.selection.includes(page.id),
+  );
   const canSplitHere = lastSelected > 0 && lastSelected < workspace.pages.length;
 
   return (
@@ -48,6 +51,9 @@ export function ContextPanel() {
             </button>
             <button type="button" className="btn" onClick={insertBlankPage}>
               {t('panel.insertBlank')}
+            </button>
+            <button type="button" className="btn" disabled={!canCrop} onClick={openCrop}>
+              {t('panel.crop')}
             </button>
             <button type="button" className="btn" onClick={() => void extractSelection()}>
               {t('panel.extract')}

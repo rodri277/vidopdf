@@ -4,12 +4,13 @@ import { useSession } from '../../state/session';
 import { useUi } from '../../state/ui-store';
 import type { DocumentTab } from '../../state/ui-store';
 import { Modal } from '../Modal';
+import { BookmarksPanel } from './BookmarksPanel';
 import { MetadataPanel } from './MetadataPanel';
 import { NumberingPanel } from './NumberingPanel';
 import { StampPreview } from './StampPreview';
 import { WatermarkPanel } from './WatermarkPanel';
 
-const TABS: readonly DocumentTab[] = ['numbering', 'watermark', 'metadata'];
+const TABS: readonly DocumentTab[] = ['numbering', 'watermark', 'bookmarks', 'metadata'];
 
 /**
  * What is stamped on the pages and written into the output file, with a live preview. Everything
@@ -54,10 +55,11 @@ export function DocumentDialog() {
           <div className="document-panel">
             {tab === 'numbering' && <NumberingPanel />}
             {tab === 'watermark' && <WatermarkPanel />}
+            {tab === 'bookmarks' && <BookmarksPanel />}
             {tab === 'metadata' && <MetadataPanel />}
           </div>
         </div>
-        {tab !== 'metadata' && (
+        {(tab === 'numbering' || tab === 'watermark') && (
           <div className="document-preview">
             <StampPreview index={Math.min(preview, Math.max(0, total - 1))} />
             <label className="field">

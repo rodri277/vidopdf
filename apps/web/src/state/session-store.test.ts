@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method -- the mocks are asserted through the objects that hold them */
 import { describe, expect, it, vi } from 'vitest';
-import { NO_METADATA, err, ok, pdfError, presets } from '@vidopdf/core';
+import { NO_METADATA, err, ok, pdfError, presets, updateBookmark } from '@vidopdf/core';
 import type {
   ImageExportOptions,
   ImagePageOptions,
@@ -296,6 +296,10 @@ describe('exporting one PDF', () => {
     await load(ctx, pdf('three.pdf'));
     const done = ctx.store.getState().startExport();
     expect(ctx.store.getState().job).toEqual({ phase: 'running', job: 'pdf', done: 0, total: 3 });
+    // The worker is called a moment later, once the bookmarks of the files have been read.
+    await vi.waitFor(() => {
+      expect(ctx.exportWorker.runPlan).toHaveBeenCalled();
+    });
     report(2, 3);
     expect(ctx.store.getState().job).toMatchObject({ phase: 'running', done: 2 });
     result.resolve(ok(produced({ pageCount: 3 })));
@@ -344,7 +348,9 @@ describe('exporting one PDF', () => {
     await load(ctx, pdf('three.pdf'));
     void ctx.store.getState().startExport();
     await ctx.store.getState().startExport();
-    expect(ctx.exportWorker.runPlan).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(ctx.exportWorker.runPlan).toHaveBeenCalledOnce();
+    });
   });
 
   it('cancels through the worker and goes back to idle when the worker confirms', async () => {
@@ -352,10 +358,23 @@ describe('exporting one PDF', () => {
     const ctx = setup({ exportWorker: { runPlan: vi.fn(() => result.promise) } });
     await load(ctx, pdf('three.pdf'));
     const done = ctx.store.getState().startExport();
+    await vi.waitFor(() => {
+      expect(ctx.exportWorker.runPlan).toHaveBeenCalled();
+    });
     ctx.store.getState().cancelJob();
     expect(ctx.exportWorker.cancelJob).toHaveBeenCalledOnce();
     result.resolve(err(pdfError('cancelled')));
     await done;
+    expect(ctx.store.getState().job.phase).toBe('idle');
+  });
+
+  it('a cancel before the worker is called stops the job without starting it', async () => {
+    const ctx = setup({ exportWorker: { runPlan: vi.fn(() => deferred<Produced>().promise) } });
+    await load(ctx, pdf('three.pdf'));
+    const done = ctx.store.getState().startExport();
+    ctx.store.getState().cancelJob(); // the plan is still being built
+    await done;
+    expect(ctx.exportWorker.runPlan).not.toHaveBeenCalled();
     expect(ctx.store.getState().job.phase).toBe('idle');
   });
 
@@ -762,5 +781,113 @@ describe('stamps, metadata and pictures', () => {
     ctx.imageSize.mockResolvedValueOnce(undefined);
     expect(await ctx.store.getState().addAsset(png('broken.png'))).toBe('unreadable');
     expect(ctx.exportWorker.registerAsset).not.toHaveBeenCalled();
+  });
+});
+
+describe('cropping the selected pages', () => {
+  it('crops only the selected original pages, as one step while an edge is dragged, and undoes it', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().insertBlankAfterSelection();
+    ctx.store.getState().selectEverything();
+    for (const top of [0.05, 0.1, 0.15]) {
+      ctx.store.getState().cropSelected({ top, right: 0, bottom: 0, left: 0 });
+    }
+    const edits = ws(ctx).edits;
+    expect(Object.keys(edits)).toHaveLength(3); // the blank page is left out
+    expect(Object.values(edits).every((e) => e.crop?.top === 0.15)).toBe(true);
+    ctx.store.getState().undo();
+    expect(ws(ctx).edits).toEqual({});
+    ctx.store.getState().redo();
+    ctx.store.getState().cropSelected(undefined);
+    expect(ws(ctx).edits).toEqual({});
+  });
+
+  it('does nothing without a selection', async () => {
+    const ctx = setup();
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().clearSelected();
+    ctx.store.getState().cropSelected({ top: 0.1, right: 0, bottom: 0, left: 0 });
+    expect(ws(ctx).edits).toEqual({});
+  });
+});
+
+describe('bookmarks', () => {
+  const withOutline = () =>
+    setup({
+      renderWorker: {
+        outline: vi.fn(() =>
+          Promise.resolve(
+            ok([
+              { title: 'Intro', pageIndex: 0, level: 1 },
+              { title: 'Part', pageIndex: 1, level: 1 },
+              { title: 'Detail', pageIndex: 2, level: 2 },
+            ]),
+          ),
+        ),
+      },
+    });
+  const written = (ctx: ReturnType<typeof setup>) =>
+    vi
+      .mocked(ctx.exportWorker.runPlan)
+      .mock.calls.at(-1)?.[1][0]
+      ?.decorations?.bookmarks.map((b) => [b.title, b.pageIndex, b.children.map((c) => c.title)]);
+
+  it('keeps the bookmarks of the loaded files by default', async () => {
+    const ctx = withOutline();
+    await load(ctx, pdf('three.pdf'));
+    await ctx.store.getState().startExport();
+    expect(written(ctx)).toEqual([
+      ['Intro', 0, []],
+      ['Part', 1, ['Detail']],
+    ]);
+  });
+
+  it('follows the pages: a deleted page takes its bookmark with it and a reorder moves it', async () => {
+    const ctx = withOutline();
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().select(ids(ctx)[0] ?? '', 'only');
+    ctx.store.getState().deleteSelected();
+    await ctx.store.getState().startExport();
+    expect(written(ctx)).toEqual([['Part', 0, ['Detail']]]);
+  });
+
+  it('writes none when asked, and the hand-made tree when edited', async () => {
+    const ctx = withOutline();
+    await load(ctx, pdf('three.pdf'));
+    ctx.store.getState().setBookmarkMode('none');
+    await ctx.store.getState().startExport();
+    expect(written(ctx)).toEqual([]);
+    ctx.store.getState().dismissJob();
+
+    await ctx.store.getState().importBookmarks();
+    expect(ws(ctx).bookmarks.mode).toBe('custom');
+    const first = ws(ctx).bookmarks.nodes[0];
+    ctx.store
+      .getState()
+      .editBookmarks(
+        (nodes) => updateBookmark(nodes, first?.id ?? '', { title: 'Cover' }),
+        'title',
+      );
+    ctx.store
+      .getState()
+      .editBookmarks(
+        (nodes) => updateBookmark(nodes, first?.id ?? '', { title: 'Cover page' }),
+        'title',
+      );
+    await ctx.store.getState().startExport();
+    expect(written(ctx)?.[0]).toEqual(['Cover page', 0, []]);
+    // Both edits of the title are one step; undoing it goes back to the imported name.
+    ctx.store.getState().undo();
+    expect(ws(ctx).bookmarks.nodes[0]?.title).toBe('Intro');
+  });
+
+  it('a file whose bookmarks cannot be read simply has none', async () => {
+    const ctx = setup({
+      renderWorker: { outline: vi.fn(() => Promise.reject(new Error('gone'))) },
+    });
+    await load(ctx, pdf('three.pdf'));
+    await ctx.store.getState().startExport();
+    expect(written(ctx)).toEqual([]);
   });
 });

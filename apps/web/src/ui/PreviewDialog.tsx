@@ -1,56 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PageRef, RenderedPage } from '@vidopdf/core';
+import type { PageRef } from '@vidopdf/core';
 import { useSession } from '../state/session';
 import { useUi } from '../state/ui-store';
-import { renderWorker } from '../workers/clients';
 import { GRID_ID } from './PageGrid';
 import { Modal } from './Modal';
-
-/** Wide enough to fill a large screen; the adapter caps the canvas area for safety. */
-const PREVIEW_WIDTH = 1600;
-let nextRequest = 1_000_000;
-
-type Drawn =
-  | { readonly state: 'loading' }
-  | { readonly state: 'ready'; readonly image: RenderedPage<ImageBitmap> }
-  | { readonly state: 'failed' };
-
-/** Draws one page at preview size. The answer is only used while it still belongs to the page. */
-function usePagePicture(page: PageRef | undefined): Drawn {
-  const key =
-    page?.kind === 'original' ? `${page.sourceId}:${String(page.sourceIndex)}` : undefined;
-  const [result, setResult] = useState<{ key: string; drawn: Drawn } | undefined>();
-  const sourceId = page?.kind === 'original' ? page.sourceId : undefined;
-  const pageIndex = page?.kind === 'original' ? page.sourceIndex : 0;
-
-  useEffect(() => {
-    if (sourceId === undefined || key === undefined) return;
-    const requestId = nextRequest++;
-    let current = true;
-    let bitmap: ImageBitmap | undefined;
-    void renderWorker()
-      .render(requestId, sourceId, pageIndex, PREVIEW_WIDTH)
-      .then((rendered) => {
-        if (!current) {
-          if (rendered.ok) rendered.value.image.close();
-          return;
-        }
-        if (rendered.ok) bitmap = rendered.value.image;
-        setResult({
-          key,
-          drawn: rendered.ok ? { state: 'ready', image: rendered.value } : { state: 'failed' },
-        });
-      });
-    return () => {
-      current = false;
-      void renderWorker().cancel(requestId);
-      bitmap?.close();
-    };
-  }, [key, sourceId, pageIndex]);
-
-  return result !== undefined && result.key === key ? result.drawn : { state: 'loading' };
-}
+import { usePagePicture } from './usePagePicture';
+import type { Drawn } from './usePagePicture';
 
 /** Arrow keys, Page keys, Home and End walk through the pages while the preview is open. */
 function useWalking(index: number, count: number, go: (to: number) => void) {

@@ -325,6 +325,7 @@ export function PageGrid() {
               selected={selected.has(page.id)}
               active={index === activeIndex}
               dragging={dragging.includes(page.id)}
+              cropped={workspace.edits[page.id]?.crop !== undefined}
               onSelect={onSelect}
               onOpen={openPreview}
             />
