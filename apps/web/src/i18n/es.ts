@@ -245,8 +245,19 @@ export const es = {
     none: 'Todavía no has cargado ningún PDF.',
   },
   empty: {
-    title: 'Suelta tus PDFs aquí',
-    hint: 'Únelos, divídelos, reordénalos y comprímelos sin subirlos a ningún servidor.',
+    title: 'Suelta tus PDFs o imágenes aquí',
+    hint: 'Edita PDFs, o crea uno nuevo a partir de fotos y capturas (JPEG o PNG), sin subir nada a ningún servidor.',
+    featuresLabel: 'Qué puedes hacer',
+    feature: {
+      merge: 'Unir y dividir',
+      arrange: 'Reordenar, girar y recortar',
+      images: 'Imágenes a PDF y PDF a imágenes',
+      compress: 'Comprimir',
+      stamps: 'Numerar páginas y marcas de agua',
+      sign: 'Firma visual y formularios',
+      metadata: 'Metadatos y marcadores',
+      protect: 'Contraseña y permisos',
+    },
     choose: 'Elegir archivos',
   },
   thumb: {

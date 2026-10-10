@@ -48,6 +48,17 @@ interface StageProps {
   onFiles: (files: File[]) => void;
 }
 
+const FEATURES = [
+  'merge',
+  'arrange',
+  'images',
+  'compress',
+  'stamps',
+  'sign',
+  'metadata',
+  'protect',
+] as const;
+
 export function Stage({ onAddFiles, onFiles }: StageProps) {
   const { t } = useTranslation();
   const pageCount = useSession((state) => state.session.workspace.pages.length);
@@ -62,6 +73,11 @@ export function Stage({ onAddFiles, onFiles }: StageProps) {
         <div className="empty">
           <h2>{t('empty.title')}</h2>
           <p>{t('empty.hint')}</p>
+          <ul className="empty-features" aria-label={t('empty.featuresLabel')}>
+            {FEATURES.map((feature) => (
+              <li key={feature}>{t(`empty.feature.${feature}`)}</li>
+            ))}
+          </ul>
           <p className="privacy">{t('app.privacy')}</p>
           <button type="button" className="btn btn-primary" onClick={onAddFiles}>
             {t('empty.choose')}
